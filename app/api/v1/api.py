@@ -150,6 +150,27 @@ async def api_calculate_pp(
         status_code=status.HTTP_200_OK,  # a list via the acclist parameter or a single score via n100 and n50
     )
 
+@router.get("/online")
+async def api_online() -> Response:
+    """Shows online players."""
+    players = []
+    bots = []
+    
+    for p in app.state.sessions.players:
+        player_info = {"id": p.id, "name": p.name}
+        
+        if p.is_bot_client:
+            bots.append(player_info)
+        else:
+            players.append(player_info)
+
+    return ORJSONResponse(
+        {
+            "status": "success",
+            "players": players,
+            "bots": bots,
+        }
+    )
 
 @router.get("/search_players")
 async def api_search_players(

@@ -181,6 +181,9 @@ def init_routes(asgi_app: BanchoAPI) -> None:
         # bancho.py's developer-facing api
         asgi_app.host(f"api.{domain}", api_router)
 
+        # ext local api route
+        asgi_app.host(f"{app.settings.LOCAL_HOST}", api_router)
+
 
 def init_api() -> BanchoAPI:
     """Create & initialize our app."""
@@ -191,6 +194,5 @@ def init_api() -> BanchoAPI:
     init_routes(asgi_app)
 
     return asgi_app
-
 
 asgi_app = init_api()

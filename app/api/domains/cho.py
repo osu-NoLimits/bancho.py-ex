@@ -102,7 +102,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py-ex v{app.settings.VERSION}ex
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -110,7 +110,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/osu-NoLimits/bancho.py-ex">Source code</a> fork of <a href="https://github.com/osuAkatsuki/bancho.py">bancho.py</a>
 </body>
 </html>""",
     )
@@ -465,9 +465,9 @@ class StatsUpdateRequest(BasePacket):
 # TODO: these should probably be moved to the config.
 WELCOME_MSG = "\n".join(
     (
-        f"Welcome to {BASE_DOMAIN}.",
+        f"Welcome to {app.settings.SERVER_NAME}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_URL}]!",
         "Enjoy the server!",
     ),
 )
@@ -479,7 +479,7 @@ RESTRICTED_MSG = (
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(
-    f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
+    f"Welcome back to {app.settings.SERVER_NAME}!\nRunning bancho.py v{app.settings.VERSION}ex.",
 )
 
 OFFLINE_NOTIFICATION = app.packets.notification(

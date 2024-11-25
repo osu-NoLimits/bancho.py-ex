@@ -7,6 +7,15 @@ build:
 run:
 	docker compose up bancho mysql redis
 
+go:
+	docker attach banchopy-ex_bancho_1
+
+stop:
+	docker stop banchopy-ex_bancho_1
+
+run-s:
+	docker-compose up -d bancho
+
 run-bg:
 	docker compose up -d bancho mysql redis
 
