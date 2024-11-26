@@ -83,7 +83,7 @@ async def alert_all(message: str) -> str:
     return "success"
 
 async def givedonator(id: int, duration: any) -> str:
-    target = app.state.sessions.players.from_cache_or_sql(id=id)
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
     if not target:
         return "user not found"
     
@@ -116,7 +116,7 @@ async def addpriv(id: int, privs: List[str]) -> str:
             return f"Invalid privilege: {priv}"
         bits |= str_priv_dict[priv]
 
-    target = app.state.sessions.players.from_cache_or_sql(id=id)
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
     if not target:
         return "user not found"
     
@@ -134,7 +134,7 @@ async def removepriv(id: int, privs: List[str]) -> str:
             return f"Invalid privilege: {priv}"
         bits |= str_priv_dict[priv]
 
-    target = app.state.sessions.players.from_cache_or_sql(id=id)
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
     if not target:
         return "user not found"
     
