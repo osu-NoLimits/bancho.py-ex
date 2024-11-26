@@ -21,6 +21,8 @@ from fastapi.responses import Response
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import ClientDisconnect
 
+from .start import *
+
 import app.bg_loops
 import app.settings
 import app.state
@@ -84,6 +86,8 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
 
     await app.state.services.database.connect()
     await app.state.services.redis.initialize()
+
+    await start_pubsub_recievers()
 
     if app.state.services.datadog is not None:
         app.state.services.datadog.start(
