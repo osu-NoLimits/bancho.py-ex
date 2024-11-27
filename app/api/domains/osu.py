@@ -530,6 +530,7 @@ def parse_form_data_score_params(
 
 
 @router.post("/web/osu-submit-modular-selector.php")
+@router.post("/web/osu-submit-modular.php")
 async def osuSubmitModularSelector(
     request: Request,
     # TODO: should token be allowed

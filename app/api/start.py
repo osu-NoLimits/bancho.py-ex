@@ -21,6 +21,32 @@ async def start_pubsub_recievers():
     asyncio.create_task(channel_givedonator_reciever())
     asyncio.create_task(channel_addpriv_reciever())
     asyncio.create_task(channel_removepriv_reciever())
+    asyncio.create_task(channel_wipe_reciever())
+
+async def channel_wipe_reciever():
+    pubsub = app.state.services.redis.pubsub()
+    await pubsub.subscribe("wipe")
+
+    log("Subscribed to 'wipe' channel.", Ansi.LGREEN)
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                data = orjson.loads(message["data"]) 
+
+                id = data["id"]
+                mode = data["mode"]
+
+                log(f"Received message on 'wipe'", Ansi.LBLUE)
+                log(f"EX | Wipe | ID: {id}, Mode: {mode}", Ansi.LBLUE)
+                response = await wipe_user(id, mode)
+                log(f"EX | " + response, Ansi.LBLUE)
+    except asyncio.CancelledError:
+        log("Channel wipe receiver task cancelled.", Ansi.LYELLOW)
+    finally:
+        await pubsub.unsubscribe("wipe")
+        log("Unsubscribed from 'wipe'.", Ansi.LRED)
+
 
 async def channel_rank_receiver():
     pubsub = app.state.services.redis.pubsub()

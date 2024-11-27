@@ -1,5 +1,6 @@
 import time
 import app
+from app.constants.gamemodes import GameMode
 from app.constants.privileges import Privileges
 from app.objects.beatmap import Beatmap, ensure_osu_file_is_available
 from app.repositories import maps as maps_repo
@@ -18,6 +19,73 @@ str_priv_dict = {
     "admin": Privileges.ADMINISTRATOR,
     "developer": Privileges.DEVELOPER,
 }
+
+async def wipe_user(id: int, mode: GameMode) -> str:
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
+    if not target:
+        return "user not found"
+    
+    await app.state.services.database.execute("DELETE FROM scores WHERE userid = :user_id AND mode = :mode",
+        {"user_id": id, "mode": mode},)
+    
+    await app.state.services.database.execute(
+        """
+        UPDATE stats 
+        SET 
+            pp = :pp, 
+            acc = :acc, 
+            tscore = :tscore, 
+            rscore = :rscore, 
+            plays = :plays, 
+            playtime = :playtime, 
+            max_combo = :max_combo, 
+            replay_views = :replay_views, 
+            total_hits = :total_hits,
+            xh_count = :xh_count, 
+            x_count = :x_count, 
+            s_count = :s_count, 
+            a_count = :a_count 
+        WHERE id = :id AND mode = :mode
+        """,
+        {
+            "pp": 0, 
+            "acc": 0, 
+            "tscore": 0, 
+            "rscore": 0, 
+            "plays": 0, 
+            "playtime": 0, 
+            "max_combo": 0, 
+            "replay_views": 0, 
+            "total_hits": 0,
+            "xh_count": 0, 
+            "x_count": 0, 
+            "s_count": 0, 
+            "a_count": 0, 
+            "id": id, 
+            "mode": mode
+        }
+    )
+
+    user_info = await app.state.services.database.fetch_one(
+        "SELECT country, priv FROM users WHERE id = :id",
+        {"id": id},
+    )
+
+    if user_info is None:
+        return "unknown user id"
+    
+
+    await app.state.services.redis.zrem(
+        f"bancho:leaderboard:{mode}",
+        str(id),
+    )
+
+    await app.state.services.redis.zrem(
+        f"bancho:leaderboard:{mode}:{user_info['country']}",
+        str(id),
+    )
+
+    return "success"
 
 async def change_bm_status(beatmap_id: int, status: int, frozen: bool) -> str:
     beatmap = await Beatmap.from_bid(beatmap_id)
