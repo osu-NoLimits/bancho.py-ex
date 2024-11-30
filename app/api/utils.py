@@ -87,6 +87,56 @@ async def wipe_user(id: int, mode: GameMode) -> str:
 
     return "success"
 
+async def change_user_flag(id: int, flag: str) -> str:
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
+    if not target:
+        return "user not found"
+    
+    countryBefore = await app.state.services.database.fetch_one(
+        "SELECT country FROM users WHERE id = :id",
+        {"id": id},
+    )
+
+    await app.state.services.database.execute(
+        "UPDATE users SET country = :country WHERE id = :user_id",
+        {"country": flag, "user_id": id},
+    )
+
+    for mode in GameMode:
+        modequery = await app.state.services.database.fetch_one(
+            "SELECT pp FROM stats WHERE id = :id AND mode = :mode",
+            {"id": id, "mode": mode},
+        ) 
+
+        key = f"bancho:leaderboard:{mode}:{countryBefore['country']}"
+        if await app.state.services.redis.zscore(key, str(id)) is not None:
+            await app.state.services.redis.zrem(key, str(id))
+
+        if modequery:
+            if modequery["pp"] == 0:
+                continue
+
+            await app.state.services.redis.zadd(key, {str(id): modequery["pp"]})
+            
+    return "success"
+
+async def change_user_name(id: int, name: str) -> str:
+    target = await app.state.sessions.players.from_cache_or_sql(id=id)
+    if not target:
+        return "user not found"
+    
+    await app.state.services.database.execute(
+        "UPDATE users SET name = :name WHERE id = :user_id",
+        {"name": name, "user_id": id},
+    )
+
+    target.name = name
+
+    if target.is_online:
+        target.logout()
+
+    return "success"
+
 async def change_bm_status(beatmap_id: int, status: int, frozen: bool) -> str:
     beatmap = await Beatmap.from_bid(beatmap_id)
 

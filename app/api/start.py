@@ -22,6 +22,56 @@ async def start_pubsub_recievers():
     asyncio.create_task(channel_addpriv_reciever())
     asyncio.create_task(channel_removepriv_reciever())
     asyncio.create_task(channel_wipe_reciever())
+    asyncio.create_task(channel_country_change_reciever())
+    asyncio.create_task(channel_name_change_reciever())
+
+async def channel_name_change_reciever():
+    pubsub = app.state.services.redis.pubsub()
+    await pubsub.subscribe("name_change")
+
+    log("Subscribed to 'name_change' channel.", Ansi.LGREEN)
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                data = orjson.loads(message["data"]) 
+
+                id = data["id"]
+                name = data["name"]
+
+                log(f"Received message on 'name_change'", Ansi.LBLUE)
+                log(f"EX | Name Change | ID: {id}, Name: {name}", Ansi.LBLUE)
+                response = await change_user_name(id, name)
+                log(f"EX | " + response, Ansi.LBLUE)
+    except asyncio.CancelledError:
+        log("Channel name_change receiver task cancelled.", Ansi.LYELLOW)
+    finally:
+        await pubsub.unsubscribe("name_change")
+        log("Unsubscribed from 'name_change'.", Ansi.LRED)
+
+async def channel_country_change_reciever():
+    pubsub = app.state.services.redis.pubsub()
+    await pubsub.subscribe("country_change")
+
+    log("Subscribed to 'country_change' channel.", Ansi.LGREEN)
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                data = orjson.loads(message["data"]) 
+
+                id = data["id"]
+                country = data["country"]
+
+                log(f"Received message on 'country_change'", Ansi.LBLUE)
+                log(f"EX | Country Change | ID: {id}, Country: {country}", Ansi.LBLUE)
+                response = await change_user_flag(id, country)
+                log(f"EX | " + response, Ansi.LBLUE)
+    except asyncio.CancelledError:
+        log("Channel country_change receiver task cancelled.", Ansi.LYELLOW)
+    finally:
+        await pubsub.unsubscribe("country_change")
+        log("Unsubscribed from 'country_change'.", Ansi.LRED)
 
 async def channel_wipe_reciever():
     pubsub = app.state.services.redis.pubsub()
