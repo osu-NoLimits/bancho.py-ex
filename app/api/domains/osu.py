@@ -752,6 +752,37 @@ async def osuSubmitModular(
                     assert announce_chan is not None
                     announce_chan.send(" ".join(ann), sender=score.player, to_self=True)
 
+                    if(app.settings.ENABLE_FIRST_PLACES_WEBHOOK):
+                        embed = Embed(
+                        title=f"#1 achieved by {score.player.name}",
+                        description=f"{score.player.name} has achieved #1 on \nhttps://{app.settings.DOMAIN}/b/{score.bmap.id}",
+                        color=0xFFD700,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        )
+
+                        embed.add_field(name="Accuracy", value=f"{score.acc:.2f}%", inline=True)
+                        embed.add_field(name="Performance", value=f"{performance}", inline=True)
+                        embed.add_field(name="Combo", value=f"{score.max_combo}x", inline=True)
+                        embed.add_field(name="Misses", value=f"{score.nmiss}", inline=True)
+
+                        if score.mods:
+                            embed.add_field(name="Mods", value=f"{score.mods!r}", inline=True)
+
+                        if prev_n1:
+                            if score.player.id != prev_n1["id"]:
+                                embed.add_field(
+                                name="Previous #1",
+                                value=f"[{prev_n1['name']}](https://{app.settings.DOMAIN}/u/{prev_n1['id']})",
+                                inline=False,
+                                )
+
+                        embed.set_thumbnail(url=f"https://a.{app.settings.DOMAIN}/{score.player.id}")
+                        webhook_url = app.settings.FIRST_PLACES_WEBHOOK
+                        webhook = Webhook(url=webhook_url)
+                        webhook.add_embed(embed)
+
+                        asyncio.create_task(webhook.post())
+
             # this score is our best score.
             # update any preexisting personal best
             # records with SubmissionStatus.SUBMITTED.
