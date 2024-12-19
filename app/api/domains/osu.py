@@ -551,6 +551,7 @@ async def osuSubmitModular(
     if score_parameters is None:
         return Response(b"")
 
+
     # extract the score data and replay file from the score data
     score_data_b64, replay_file = score_parameters
 

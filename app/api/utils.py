@@ -99,7 +99,7 @@ async def change_user_flag(id: int, flag: str) -> str:
 
     await app.state.services.database.execute(
         "UPDATE users SET country = :country WHERE id = :user_id",
-        {"country": flag, "user_id": id},
+        {"country": flag.lower(), "user_id": id},
     )
 
     for mode in GameMode:
@@ -115,8 +115,8 @@ async def change_user_flag(id: int, flag: str) -> str:
         if modequery:
             if modequery["pp"] == 0:
                 continue
-
-            await app.state.services.redis.zadd(key, {str(id): modequery["pp"]})
+            newkey = f"bancho:leaderboard:{mode}:{flag.lower()}"
+            await app.state.services.redis.zadd(newkey, {str(id): modequery["pp"]})
             
     return "success"
 
