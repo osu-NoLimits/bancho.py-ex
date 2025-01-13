@@ -18,6 +18,7 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
+import app.metrics
 import databases.core
 from fastapi import APIRouter
 from fastapi import Response
@@ -429,6 +430,9 @@ class SendMessage(BasePacket):
             t_chan.send(msg, sender=player)
 
         player.update_latest_activity_soon()
+
+        if app.metrics.enabled:
+            app.metrics.increment("ex_chat_messages")
 
         log(f"{player} @ {t_chan}: {msg}", Ansi.LCYAN)
 
@@ -872,6 +876,9 @@ async def handle_osu_login_request(
     data = bytearray(app.packets.protocol_version(19))
     data += app.packets.login_reply(player.id)
 
+    if app.metrics.enabled:
+        app.metrics.increment("ex_logins")
+
     # *real* client privileges are sent with this packet,
     # then the user's apparent privileges are sent in the
     # userPresence packets to other players. we'll send
@@ -1027,6 +1034,13 @@ async def handle_osu_login_request(
     # add `p` to the global player list,
     # making them officially logged in.
     app.state.sessions.players.append(player)
+
+    if app.metrics.enabled:
+        if not player.restricted:
+            app.metrics.increment("ex_online_players")
+
+        time_taken = time.time() - login_time
+        app.metrics.histrogram("ex_login_time", time_taken)
 
     if app.state.services.datadog:
         if not player.restricted:

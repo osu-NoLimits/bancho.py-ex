@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from app import metrics
 import starlette.routing
 from fastapi import FastAPI
 from fastapi import status
@@ -88,6 +89,8 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
     await app.state.services.redis.initialize()
 
     await start_pubsub_recievers()
+
+    metrics.start_metrics_server()
 
     if app.state.services.datadog is not None:
         app.state.services.datadog.start(

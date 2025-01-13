@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING
 from typing import TypedDict
 from typing import cast
 
+import app.metrics
 import databases.core
 
 import app.packets
@@ -400,6 +401,9 @@ class Player:
         if not self.restricted:
             if app.state.services.datadog:
                 app.state.services.datadog.decrement("bancho.online_players")
+
+            if app.metrics.enabled:
+                app.metrics.decrement("ex_online_players")
 
             app.state.sessions.players.enqueue(app.packets.logout(self.id))
 

@@ -23,6 +23,7 @@ from urllib.parse import unquote_plus
 
 import bcrypt
 from app.discord import Embed, Webhook
+import app.metrics
 from fastapi import status
 from fastapi.datastructures import FormData
 from fastapi.datastructures import UploadFile
@@ -694,9 +695,15 @@ async def osuSubmitModular(
         if app.state.services.datadog:
             app.state.services.datadog.increment("bancho.submitted_scores")
 
+        if app.metrics.enabled:
+            app.metrics.increment("ex_submitted_scores")
+
         if score.status == SubmissionStatus.BEST:
             if app.state.services.datadog:
                 app.state.services.datadog.increment("bancho.submitted_scores_best")
+            
+            if app.metrics.enabled:
+                app.metrics.increment("ex_submitted_scores_best")
 
             if score.bmap.has_leaderboard:
                 if score.bmap.status == RankedStatus.Loved and score.mode in (
@@ -783,6 +790,9 @@ async def osuSubmitModular(
                         webhook.add_embed(embed)
 
                         asyncio.create_task(webhook.post())
+
+                        if app.metrics.enabled:
+                            app.metrics.increment("ex_first_places_webhook")
 
             # this score is our best score.
             # update any preexisting personal best
@@ -1276,10 +1286,15 @@ async def osuSubmitModularSelector(
         if app.state.services.datadog:
             app.state.services.datadog.increment("bancho.submitted_scores")
 
+        if app.metrics.enabled:
+            app.metrics.increment("ex_submitted_scores")
+
         if score.status == SubmissionStatus.BEST:
             if app.state.services.datadog:
                 app.state.services.datadog.increment("bancho.submitted_scores_best")
 
+            if app.metrics.enabled:
+                app.metrics.increment("ex_submitted_scores_best")
             if score.bmap.has_leaderboard:
                 if score.bmap.status == RankedStatus.Loved and score.mode in (
                     GameMode.VANILLA_OSU,
@@ -1936,6 +1951,9 @@ async def getScores(
     if app.state.services.datadog:
         app.state.services.datadog.increment("bancho.leaderboards_served")
 
+    if app.metrics.enabled:
+        app.metrics.increment("ex_leaderboards_served")
+
     if bmap.status < RankedStatus.Ranked:
         # only show leaderboards for ranked,
         # approved, qualified, or loved maps.
@@ -2370,6 +2388,9 @@ async def register_account(
 
         if app.state.services.datadog:
             app.state.services.datadog.increment("bancho.registrations")
+
+        if(app.metrics.enabled):
+            app.metrics.increment("ex_registrations")
 
         log(f"<{username} ({player['id']})> has registered!", Ansi.LGREEN)
 
