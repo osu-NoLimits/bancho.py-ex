@@ -8,8 +8,8 @@
 **bancho.py-ex** is a fork of **[bancho.py](https://github.com/osuAkatsuki)** that
 tries to make bancho.py more suitable for public server use
 
-## Extra features [(wiki)](https://github.com/osu-NoLimits/bancho.py-ex/wiki/Pubsubs) 
-- 🧩 Redis pubsubs for:
+## Extra features 
+- 🧩 Redis pubsubs for: [(wiki)](https://github.com/osu-NoLimits/bancho.py-ex/wiki/Pubsubs) 
     - Ranking beatmaps
     - Un/restricting users
     - Wipe users
@@ -18,6 +18,7 @@ tries to make bancho.py more suitable for public server use
     - Add or remove priv
 - 🧩 Prometheus metric support (when enabled)
 - 🧩 First place webhook (when enabled)
+- 🧩 2016 client support
 
 ## License
 
