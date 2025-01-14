@@ -792,7 +792,7 @@ async def osuSubmitModular(
                         asyncio.create_task(webhook.post())
 
                         if app.metrics.enabled:
-                            app.metrics.increment("ex_first_places_webhook")
+                            app.metrics.increment("ex_first_place_webhook")
 
             # this score is our best score.
             # update any preexisting personal best
@@ -1380,6 +1380,9 @@ async def osuSubmitModularSelector(
                         webhook.add_embed(embed)
 
                         asyncio.create_task(webhook.post())
+
+                        if app.metrics.enabled:
+                            app.metrics.increment("ex_first_place_webhook")
 
 
             # this score is our best score.

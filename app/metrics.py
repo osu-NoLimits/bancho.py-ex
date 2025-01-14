@@ -7,7 +7,7 @@ METRICS = {
     "ex_submitted_scores_best": Counter("ex_submitted_scores_best", "Total number of best scores submitted"),
     "ex_leaderboards_served": Counter("ex_leaderboards_served", "Total number of leaderboards served"),
     "ex_registrations": Counter("ex_registrations", "Total number of user registrations"),
-    "ex_online_players": Counter("ex_online_players", "Total number of players currently online"),
+    "ex_online_players": Gauge("ex_online_players_g", "Total number of players currently online"),
     "ex_login_time": Histogram("ex_login_time", "Login time latency in seconds"),
     "ex_first_place_webhook": Counter("ex_first_place_webhook", "First place webhooks send"),
     "ex_chat_messages": Counter("ex_chat_messages", "Total number of chat messages sent"),
