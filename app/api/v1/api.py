@@ -6,6 +6,7 @@ import hashlib
 import struct
 from pathlib import Path as SystemPath
 from typing import Literal
+from urllib.parse import quote
 
 from fastapi import APIRouter
 from fastapi import Depends
@@ -738,11 +739,10 @@ async def api_get_replay(
             media_type="application/octet-stream",
             headers={
                 "Content-Description": "File Transfer",
-                # TODO: should we include a Content-Disposition?
+                "Content-Disposition": "attachment; filename=\"replay.osr\"",
             },
         )
     # add replay headers from sql
-    # TODO: osu_version & life graph in scores tables?
     row = await app.state.services.database.fetch_one(
         "SELECT u.name username, m.md5 map_md5, "
         "m.artist, m.title, m.version, "
@@ -760,7 +760,7 @@ async def api_get_replay(
         return ORJSONResponse(
             {"status": "Score not found."},
             status_code=status.HTTP_404_NOT_FOUND,
-        )  # but replay was?
+        )
     # generate the replay's hash
     replay_md5 = hashlib.md5(
         "{}p{}o{}o{}t{}a{}r{}e{}y{}o{}u{}{}{}".format(
@@ -781,12 +781,12 @@ async def api_get_replay(
     ).hexdigest()
     # create a buffer to construct the replay output
     replay_data = bytearray()
-    # pack first section of headers.
+    # pack first section of headers
     replay_data += struct.pack(
         "<Bi",
         GameMode(row["mode"]).as_vanilla,
-        20200207,
-    )  # TODO: osuver
+        20200207,  # TODO: osuver
+    )
     replay_data += app.packets.write_string(row["map_md5"])
     replay_data += app.packets.write_string(row["username"])
     replay_data += app.packets.write_string(replay_md5)
@@ -806,27 +806,35 @@ async def api_get_replay(
     replay_data += b"\x00"  # TODO: hp graph
     timestamp = int(row["play_time"].timestamp() * 1e7)
     replay_data += struct.pack("<q", timestamp + DATETIME_OFFSET)
+
     # pack the raw replay data into the buffer
     replay_data += struct.pack("<i", len(raw_replay_data))
     replay_data += raw_replay_data
-    # pack additional info buffer.
+
+    # pack additional info buffer
     replay_data += struct.pack("<q", score_id)
-    # NOTE: target practice sends extra mods, but
-    # can't submit scores so should not be a problem.
+
+    def format_filename_rfc5987(params):
+        """Format filename according to RFC 5987 for proper Unicode support."""
+        filename = "{username} - {artist} - {title} [{version}] ({play_time:%Y-%m-%d}).osr".format(**params)
+        
+        # ASCII fallback for older clients
+        ascii_filename = filename.encode('ascii', 'ignore').decode('ascii')
+        
+        # UTF-8 encoded filename for modern clients
+        utf8_filename = "UTF-8''" + quote(filename.encode('utf-8'))
+        
+        return f"attachment; filename=\"{ascii_filename}\"; filename*={utf8_filename}"
+
     # stream data back to the client
     return Response(
         bytes(replay_data),
         media_type="application/octet-stream",
         headers={
             "Content-Description": "File Transfer",
-            "Content-Disposition": (
-                'attachment; filename="{username} - '
-                "{artist} - {title} [{version}] "
-                '({play_time:%Y-%m-%d}).osr"'
-            ).format(**row),
+            "Content-Disposition": format_filename_rfc5987(row),
         },
     )
-
 
 @router.get("/get_match")
 async def api_get_match(
