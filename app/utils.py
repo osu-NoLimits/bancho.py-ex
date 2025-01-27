@@ -152,19 +152,27 @@ def get_appropriate_stacktrace() -> list[FrameInfo]:
     else:
         raise Exception
 
-    return [
-        {
+    # reverse for python-like stacktrace
+    # ordering; puts the most recent
+    # call closest to the command line
+    frames = []
+    for frame in reversed(stack[:idx]):
+        locals = {}
+        for k, v in frame.frame.f_locals.items():
+            try:
+                locals[k] = repr(v)
+            except:
+                continue
+
+        frames.append({
             "function": frame.function,
             "filename": Path(frame.filename).name,
             "lineno": frame.lineno,
             "charno": frame.index or 0,
-            "locals": {k: repr(v) for k, v in frame.frame.f_locals.items()},
-        }
-        # reverse for python-like stacktrace
-        # ordering; puts the most recent
-        # call closest to the command line
-        for frame in reversed(stack[:idx])
-    ]
+            "locals": locals,
+        })
+
+    return frames
 
 
 def pymysql_encode(

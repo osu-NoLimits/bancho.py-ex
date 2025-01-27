@@ -85,10 +85,9 @@ async def recalculate_score(
             {"new_pp": new_pp, "id": score["id"]},
         )
 
-        if DEBUG:
-            print(
-                f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
-            )
+        print(
+            f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+        )
 
     except Exception as e:
         # Log the error and continue processing other scores
@@ -168,8 +167,7 @@ async def recalculate_user(
             {str(id): pp},
         )
 
-    if DEBUG:
-        print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
+    print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
 
 async def process_user_chunk(
     chunk: list[int],
