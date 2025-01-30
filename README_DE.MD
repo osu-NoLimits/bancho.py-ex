@@ -1,14 +1,23 @@
-# bancho.py
+# bancho.py-ex
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Code Stil: schwarz](https://img.shields.io/badge/Code%20Stil-Schwarz-black)](https://github.com/ambv/black)
-[![pre-commit.ci Status](https://results.pre-commit.ci/badge/github/osuAkatsuki/bancho.py/master.svg)](https://results.pre-commit.ci/latest/github/osuAkatsuki/bancho.py/master)
-[![Discord](https://discordapp.com/api/guilds/748687781605408908/widget.png?style=shield)](https://discord.gg/ShEQgUx)
+[![](https://dcbadge.limes.pink/api/server/Dr79DU9kbD)](https://discord.gg/Dr79DU9kbD)
 
-bancho.py ist eine in Arbeit befindliche osu!-Server-Implementierung für
-Entwickler aller Erfahrungsstufen, die daran interessiert sind, ihre eigene(n)
-private(n) osu-Server-Instanz(en) zu hosten
+**bancho.py-ex** ist ein fork von **[bancho.py](https://github.com/osuAkatsuki)** der versucht
+bancho.py für moderne frontends zu verbessern
 
-Das Projekt wird hauptsächlich vom [Akatsuki](https://akatsuki.pw/)-Team entwickelt,
-und unser Ziel ist es, die am einfachsten zu wartende, zuverlässigste und
-funktionsreichste osu!-Server-Implementierung auf dem Markt zu schaffen.
+## Extra features 
+- 🧩 Redis pubsubs für: [(wiki)](https://github.com/osu-NoLimits/bancho.py-ex/wiki/Pubsubs) 
+    - Ranking beatmaps
+    - Nutzer Un/Restricten
+    - Nutzer Wipen
+    - Nachricht an alle Spieler senden
+    - Nutzer Donator geben
+    - Rechte hinzufügen oder löschen
+- 🧩 Prometheus metric unterstützung (wenn aktiviert)
+- 🧩 First place Webhook (wenn aktiviert)
+- 🧩 2016 Client unterstützung
+- 🧩 Set Server name and Discord in .env (keine programmierung notwendig)
+
+## License
+
+**bancho.py-ex** is licensed under the [MIT License](https://opensource.org/license/mit/). Please see the [LICENSE](https://github.com/osuAkatsuki/bancho.py/blob/master/LICENSE) file for more information.
