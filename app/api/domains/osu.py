@@ -722,7 +722,7 @@ async def osuSubmitModular(
                     ),
                 )
 
-                if score.rank == 1 and not score.player.restricted:
+                if score.rank == 1 and not score.player.restricted and score.status == 2:
                     announce_chan = app.state.sessions.channels.get_by_name("#announce")
 
                     ann = [
@@ -1312,7 +1312,7 @@ async def osuSubmitModularSelector(
                     ),
                 )
 
-                if score.rank == 1 and not score.player.restricted:
+                if score.rank == 1 and not score.player.restricted and score.status == 2:
                     announce_chan = app.state.sessions.channels.get_by_name("#announce")
 
                     ann = [
