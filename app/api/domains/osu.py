@@ -842,6 +842,10 @@ async def osuSubmitModular(
             },
         )
 
+        pubsub = app.state.services.redis.pubsub()
+        await pubsub.execute_command("PUBLISH", "ex:submit", score.toJSON())
+        
+
     if score.passed:
         replay_data = await replay_file.read()
 
@@ -1433,6 +1437,9 @@ async def osuSubmitModularSelector(
             },
         )
 
+        pubsub = app.state.services.redis.pubsub()
+        await pubsub.execute_command("PUBLISH", "ex:submit", score.toJSON())
+        
     if score.passed:
         replay_data = await replay_file.read()
 
