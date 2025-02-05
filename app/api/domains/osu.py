@@ -2189,6 +2189,52 @@ async def checkUpdates(
 ) -> Response:
     return Response(b"")
 
+# BANCHO.PY - REDIRECT PPY BUTTON TO SERVER PAGE
+@router.get("/")
+async def osuRoot() -> Response:
+    return RedirectResponse(
+        url=f"https://{app.settings.DOMAIN}",
+        status_code=status.HTTP_301_MOVED_PERMANENTLY,
+    )
+
+# BANCHO.PY - REDIRECTION FOR BEATMAPS, TOPICS, AVATARS FOR SHIINA
+if app.settings.REDIRECT_OSU_URLS:
+
+    async def osu_redirect_beatmaps(file_path: str) -> Response:
+        return RedirectResponse(
+            url=f"https://{app.settings.DOMAIN}/b/{file_path}",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+
+    async def osu_redirect_beatmapsets(file_path: str) -> Response:
+        return RedirectResponse(
+            url=f"https://{app.settings.DOMAIN}/beatmapset/{file_path}",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+
+    async def osu_redirect_topic(file_path: str) -> Response:
+        return RedirectResponse(
+            url=f"https://{app.settings.DOMAIN}/b/{file_path}",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+
+    async def profile_redirect(file_path: str) -> Response:
+        return RedirectResponse(
+            url=f"https://{app.settings.DOMAIN}/u/{file_path}",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+        )
+
+    async def avatar_edit_redirect() -> Response:
+        return RedirectResponse(
+            url=f"https://{app.settings.DOMAIN}/settings",
+            status_code=status.HTTP_301_MOVED_PERMANENTLY,
+    )
+
+    router.get("/beatmaps/{file_path:path}")(osu_redirect_beatmaps)
+    router.get("/beatmapsets/{file_path:path}")(osu_redirect_beatmaps)
+    router.get("/community/forums/topics/{file_path:path}")(osu_redirect_beatmaps)
+    router.get("/u/{file_path:path}")(profile_redirect)
+    router.get("/home/account/edit")(avatar_edit_redirect)
 
 """ Misc handlers """
 
