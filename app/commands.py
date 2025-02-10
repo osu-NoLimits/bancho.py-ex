@@ -411,113 +411,67 @@ async def top(ctx: Context) -> str | None:
     )
 
 
-class ParsingError(str): ...
-
-
-def parse__with__command_args(
-    mode: int,
-    args: Sequence[str],
-) -> Mapping[str, Any] | ParsingError:
-    """Parse arguments for the !with command."""
-
-    if not args or len(args) > 4:
-        return ParsingError("Invalid syntax: !with <acc/nmiss/combo/mods ...>")
-
-    # !with 95% 1m 429x hddt
-    acc = mods = combo = nmiss = None
-
-    # parse acc, misses, combo and mods from arguments.
-    # tried to balance complexity vs correctness here
-    for arg in (str.lower(arg) for arg in args):
-        # mandatory suffix, combo & nmiss
-        if combo is None and arg.endswith("x") and arg[:-1].isdecimal():
-            combo = int(arg[:-1])
-            # if combo > bmap.max_combo:
-            #    return "Invalid combo."
-        elif nmiss is None and arg.endswith("m") and arg[:-1].isdecimal():
-            nmiss = int(arg[:-1])
-            # TODO: store nobjects?
-            # if nmiss > bmap.combo:
-            #    return "Invalid misscount."
-        else:
-            # optional prefix/suffix, mods & accuracy
-            arg_stripped = arg.removeprefix("+").removesuffix("%")
-            if mods is None and arg_stripped.isalpha() and len(arg_stripped) % 2 == 0:
-                mods = Mods.from_modstr(arg_stripped)
-                mods = mods.filter_invalid_combos(mode)
-            elif acc is None and arg_stripped.replace(".", "", 1).isdecimal():
-                acc = float(arg_stripped)
-                if not 0 <= acc <= 100:
-                    return ParsingError("Invalid accuracy.")
-            else:
-                return ParsingError(f"Unknown argument: {arg}")
-
-    return {
-        "acc": acc,
-        "mods": mods,
-        "combo": combo,
-        "nmiss": nmiss,
-    }
-
-
 @command(Privileges.UNRESTRICTED, aliases=["w"], hidden=True)
 async def _with(ctx: Context) -> str | None:
     """Specify custom accuracy & mod combinations with `/np`."""
-    if ctx.recipient is not app.state.sessions.bot:
-        return "This command can only be used in DM with bot."
-
     if ctx.player.last_np is None or time.time() >= ctx.player.last_np["timeout"]:
         return "Please /np a map first!"
 
     bmap: Beatmap = ctx.player.last_np["bmap"]
 
-    osu_file_available = await ensure_osu_file_is_available(
-        bmap.id,
-        expected_md5=bmap.md5,
-    )
-    if not osu_file_available:
+    osu_file_path = BEATMAPS_PATH / f"{bmap.id}.osu"
+    if not await ensure_osu_file_is_available(bmap.id, bmap.md5):
         return "Mapfile could not be found; this incident has been reported."
 
-    mode_vn = ctx.player.last_np["mode_vn"]
+    score_args = ScoreParams(mode=ctx.player.last_np["mode_vn"])
+    attributes_table = {
+        "xgeki": "ngeki",
+        "xkatu": "nkatu",
+        "x100": "n100",
+        "x50": "n50",
+        "x": "combo",
+        "m": "nmiss",
+        "%": "acc",
+    }
 
-    command_args = parse__with__command_args(mode_vn, ctx.args)
-    if isinstance(command_args, ParsingError):
-        return str(command_args)
+    # if the last np contains mod info, use it as the default
+    if ctx.player.last_np["mods"] is not None:
+        score_args.mods = ctx.player.last_np["mods"]
 
-    msg_fields = []
+    for arg in (arg.lower() for arg in ctx.args):
+        try:
+            # handle mods extra
+            if arg.startswith("+"):
+                score_args.mods = Mods.from_modstr(arg[1:]).filter_invalid_combos(
+                    ctx.player.last_np["mode_vn"],
+                )
+                continue
 
-    score_args = ScoreParams(mode=mode_vn)
+            for suffix, attribute in attributes_table.items():
+                if arg.endswith(suffix):
+                    valueStr = arg[: -len(suffix)]
+                    value = (
+                        min(max(float(valueStr), 0), 100)
+                        if attribute == "acc"
+                        else int(valueStr)
+                    )
+                    setattr(score_args, attribute, value)
 
-    mods = command_args["mods"]
-    if mods is not None:
-        score_args.mods = mods
-        msg_fields.append(f"{mods!r}")
+        except ValueError as ex:
+            return f"Could not parse parameter '{arg}'."
 
-    nmiss = command_args["nmiss"]
-    if nmiss:
-        score_args.nmiss = nmiss
-        msg_fields.append(f"{nmiss}m")
-
-    combo = command_args["combo"]
-    if combo is not None:
-        score_args.combo = combo
-        msg_fields.append(f"{combo}x")
-
-    acc = command_args["acc"]
-    if acc is not None:
-        score_args.acc = acc
-        msg_fields.append(f"{acc:.2f}%")
+    if score_args.acc and (score_args.ngeki or score_args.nkatu or score_args.n50 or score_args.n100):
+        return f"You may only specify accuracy or geki/katu/50s/100s."
 
     result = app.usecases.performance.calculate_performances(
-        osu_file_path=str(BEATMAPS_PATH / f"{bmap.id}.osu"),
+        osu_file_path=str(osu_file_path),
         scores=[score_args],  # calculate one score
     )
 
-    return "{msg}: {pp:.2f}pp ({stars:.2f}*)".format(
-        msg=" ".join(msg_fields),
+    return "{pp:.2f}pp ({stars:.2f}*)".format(
         pp=result[0]["performance"]["pp"],
-        stars=result[0]["difficulty"]["stars"],  # (first score result)
-    )
+        stars=result[0]["difficulty"]["stars"],
+    )  # (first score result)
 
 
 @command(Privileges.UNRESTRICTED, aliases=["req"])
