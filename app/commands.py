@@ -27,7 +27,7 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
-import cpuinfo
+import cpuinfos
 import psutil
 import timeago
 from pytimeparse.timeparse import timeparse
@@ -693,6 +693,8 @@ ACTION_STRINGS = {
     "silence": "Silenced for",
     "unsilence": "Unsilenced for",
     "note": "Note added:",
+    "whitelist": "Whitelisted",
+    "unwhitelist": "Unwhitelisted"
 }
 
 
@@ -817,6 +819,65 @@ async def unsilence(ctx: Context) -> str | None:
 
     await target.unsilence(ctx.player, reason)
     return f"{target} was unsilenced."
+
+@command(Privileges.MODERATOR, hidden=True)
+async def whitelist(ctx: Context) -> str | None:
+    """Adds the verified (whitelisted) role to the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !whitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if target.priv & Privileges.WHITELISTED:
+        return "The user is already whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "whitelist",
+            "msg": "",
+        },
+    )
+
+    await target.add_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully whitelisted."
+
+
+@command(Privileges.MODERATOR, hidden=True)
+async def unwhitelist(ctx: Context) -> str | None:
+    """Removes the verified (whitelisted) role from the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !unwhitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if not target.priv & Privileges.WHITELISTED:
+        return "The user is not whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "unwhitelist",
+            "msg": "",
+        },
+    )
+
+    await target.remove_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully un-whitelisted."
 
 
 """ Admin commands
