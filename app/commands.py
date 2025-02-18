@@ -9,6 +9,7 @@ import signal
 import time
 import traceback
 import uuid
+import datetime
 from collections.abc import Awaitable
 from collections.abc import Callable
 from collections.abc import Mapping
@@ -44,6 +45,7 @@ from app.constants.mods import SPEED_CHANGING_MODS
 from app.constants.mods import Mods
 from app.constants.privileges import ClanPrivileges
 from app.constants.privileges import Privileges
+from app.discord import Webhook, Embed
 from app.logging import Ansi
 from app.logging import log
 from app.objects.beatmap import Beatmap
@@ -658,7 +660,7 @@ async def _map(ctx: Context) -> str | None:
                 _bmap.frozen = True
 
             # select all map ids for clearing map requests.
-            modified_beatmap_ids = [
+            map_ids = [
                 row["id"]
                 for row in await maps_repo.fetch_many(
                     set_id=bmap.set_id,
@@ -674,12 +676,40 @@ async def _map(ctx: Context) -> str | None:
                 app.state.cache.beatmap[bmap.md5].status = new_status
                 app.state.cache.beatmap[bmap.md5].frozen = True
 
-            modified_beatmap_ids = [bmap.id]
+            map_ids = [bmap.id]
 
         # deactivate rank requests for all ids
-        await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
+        await app.state.services.database.execute(
+            "UPDATE map_requests SET active = 0 WHERE map_id IN :map_ids",
+            {"map_ids": map_ids}
 
-    return f"{bmap.embed} updated to {new_status!s}."
+    if webhook_url := app.settings.DISCORD_RANK_WEBHOOK:
+        name = f"{bmap.artist} - {bmap.title} ({bmap.creator}) {f'[{bmap.version}]' if ctx.args[1] == 'map' else ''}"
+        color = (
+            52478 if new_status == RankedStatus.Ranked
+            else 16738218 if new_status == RankedStatus.Loved
+            else 0
+        )
+
+        timestamp = datetime.utcnow().isoformat()
+
+        embed = Embed(
+            title="",
+            description=f"[{name}]({bmap.url}) is now {'ranked' if new_status == RankedStatus.Ranked else 'loved' if new_status == RankedStatus.Loved else 'unranked'}!",
+            timestamp=timestamp,
+            color=color
+        )
+        embed.set_author(name=ctx.player.name, icon_url=ctx.player.avatar_url, url=ctx.player.url)
+        embed.set_image(url=f"https://assets.ppy.sh/beatmaps/{bmap.set_id}/covers/card.jpg")
+        embed.set_footer(text="Beatmap Status changed")
+        
+        webhook = Webhook(webhook_url, embeds=[embed])
+        await webhook.post()
+
+    if ctx.args[1] == "set":
+        return f"[{bmap.set.url} {bmap.artist} - {bmap.title}] updated to {new_status!s}."
+    else:
+        return f"{bmap.embed} updated to {new_status!s}."
 
 
 """ Mod commands
