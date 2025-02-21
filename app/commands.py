@@ -27,7 +27,8 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
-import cpuinfos
+from app.api.v2.common import json
+import cpuinfo
 import psutil
 import timeago
 from pytimeparse.timeparse import timeparse
@@ -645,9 +646,10 @@ async def _map(ctx: Context) -> str | None:
     # XXX: not sure if getting md5s from sql
     # for updating cache would be faster?
     # surely this will not scale as well...
-
+    ranktype = None
     async with app.state.services.database.transaction():
         if ctx.args[1] == "set":
+            ranktype = "set"
             # update all maps in the set
             for _bmap in bmap.set.maps:
                 await maps_repo.partial_update(_bmap.id, status=new_status, frozen=True)
@@ -666,6 +668,7 @@ async def _map(ctx: Context) -> str | None:
             ]
 
         else:
+            ranktype = "map"
             # update only map
             await maps_repo.partial_update(bmap.id, status=new_status, frozen=True)
 
@@ -678,7 +681,9 @@ async def _map(ctx: Context) -> str | None:
 
         # deactivate rank requests for all ids
         await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
-
+    pubsub = app.state.services.redis.pubsub()
+    data = json.dumps({"map_ids": modified_beatmap_ids, "ranktype": ranktype})
+    await pubsub.execute_command("PUBLISH", "ex:map_status_change", data)
     return f"{bmap.embed} updated to {new_status!s}."
 
 
