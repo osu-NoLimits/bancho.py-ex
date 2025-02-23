@@ -682,7 +682,7 @@ async def _map(ctx: Context) -> str | None:
         # deactivate rank requests for all ids
         await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
     pubsub = app.state.services.redis.pubsub()
-    data = json.dumps({"map_ids": modified_beatmap_ids, "ranktype": ranktype})
+    data = json.dumps({"map_ids": modified_beatmap_ids, "ranktype": ranktype, "type": ctx.args[0]})
     await pubsub.execute_command("PUBLISH", "ex:map_status_change", data)
     return f"{bmap.embed} updated to {new_status!s}."
 
