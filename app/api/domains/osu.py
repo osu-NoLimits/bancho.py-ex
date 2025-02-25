@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import orjson
 import asyncio
 import copy
 from datetime import datetime, timezone
 import hashlib
+import os
 import random
 import secrets
 from collections import defaultdict
@@ -22,6 +24,7 @@ from urllib.parse import unquote
 from urllib.parse import unquote_plus
 
 import bcrypt
+from app.api.v2.common import json
 from app.discord import Embed, Webhook
 import app.metrics
 from fastapi import status
@@ -81,6 +84,37 @@ from app.utils import pymysql_encode
 BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
 REPLAYS_PATH = SystemPath.cwd() / ".data/osr"
 SCREENSHOTS_PATH = SystemPath.cwd() / ".data/ss"
+
+file_path = "caps.json"
+
+# Default data
+default_data = {
+    "enabled": False,
+    "caps": {
+        "0": 800,  # vn!std
+        "4": 1400, # rx!std
+        "8": 600   # ap!std
+    }
+}
+
+# Ensure the file exists and is not empty
+if not os.path.exists(file_path) or os.stat(file_path).st_size == 0:
+    with open(file_path, "wb") as f:
+        f.write(orjson.dumps(default_data))
+
+# Load function with error handling
+def load_json(file_path: str):
+    try:
+        with open(file_path, "rb") as f:
+            return orjson.loads(f.read())
+    except orjson.JSONDecodeError:
+        # Reset file if JSON is invalid
+        with open(file_path, "wb") as f:
+            f.write(orjson.dumps(default_data))
+        return default_data
+
+capData = load_json(file_path)
+print(capData)
 
 
 router = APIRouter(
@@ -687,8 +721,23 @@ async def osuSubmitModular(
                 score.status = SubmissionStatus.FAILED
 
         score.time_elapsed = score_time if score.passed else fail_time
+       
+        score_eligible = score.bmap.awards_ranked_pp and score.passed
+        player_eligible = not score.player.priv & Privileges.WHITELISTED and not score.player.restricted
+        if score_eligible and player_eligible and capData["enabled"]:
+            log(f"caps: {capData['caps']}")
+            caps = capData["caps"]
 
-        # TODO: re-implement pp caps for non-whitelisted players?
+            # check if pp cap was exceeded
+            if str(score.mode) in caps and score.pp >= caps[str(score.mode)]:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason=f"[{score.mode!r} autoban] liveplay requested",
+                )
+
+                # refresh their client state
+                if score.player.is_online:
+                    score.player.logout()
 
         """ Score submission checks completed; submit the score. """
 
@@ -1282,8 +1331,22 @@ async def osuSubmitModularSelector(
                 score.status = SubmissionStatus.FAILED
 
         score.time_elapsed = score_time if score.passed else fail_time
+        score_eligible = score.bmap.awards_ranked_pp and score.passed
+        player_eligible = not score.player.priv & Privileges.WHITELISTED and not score.player.restricted
+        if score_eligible and player_eligible and capData["enabled"]:
+            log(f"caps: {capData['caps']}")
+            caps = capData["caps"]
 
-        # TODO: re-implement pp caps for non-whitelisted players?
+            # check if pp cap was exceeded
+            if str(score.mode) in caps and score.pp >= caps[str(score.mode)]:
+                await score.player.restrict(
+                    admin=app.state.sessions.bot,
+                    reason=f"[{score.mode!r} autoban] liveplay requested",
+                )
+
+                # refresh their client state
+                if score.player.is_online:
+                    score.player.logout()
 
         """ Score submission checks completed; submit the score. """
 
