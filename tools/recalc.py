@@ -36,8 +36,10 @@ except ModuleNotFoundError:
 
 T = TypeVar("T")
 
+debug_mode_enabled = True
 
 DEBUG = True
+
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 
@@ -85,6 +87,7 @@ async def recalculate_score(
             {"new_pp": new_pp, "id": score["id"]},
         )
 
+    if debug_mode_enabled:
         print(
             f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
         )
@@ -166,8 +169,9 @@ async def recalculate_user(
             f"bancho:leaderboard:{game_mode.value}:{user_info['country']}",
             {str(id): pp},
         )
-
-    print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
+        
+    if debug_mode_enabled:
+        print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
 
 async def process_user_chunk(
     chunk: list[int],
@@ -248,13 +252,13 @@ async def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    global DEBUG
-    DEBUG = args.debug
+    global debug_mode_enabled
+    debug_mode_enabled = args.debug
 
     db = databases.Database(app.settings.DB_DSN)
     await db.connect()
 
-    redis = await aioredis.from_url(app.settings.REDIS_DSN)
+    redis = await aioredis.from_url(app.settings.REDIS_DSN)  # type: ignore[no-untyped-call]
 
     ctx = Context(db, redis)
 
