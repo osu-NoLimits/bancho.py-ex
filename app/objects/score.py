@@ -8,6 +8,7 @@ from enum import unique
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from app.api.v2.common import json
 import app.state
 import app.usecases.performance
 import app.utils
@@ -153,6 +154,45 @@ class Score:
 
         self.rank: int | None = None
         self.prev_best: Score | None = None
+
+    def toJSON(self) -> str:
+        """Convert Score object to JSON string with primitive values."""
+        data = {
+            'id': self.id,
+            'mode': self.mode.value if hasattr(self.mode, 'value') else str(self.mode),
+            'mods': self.mods.value if hasattr(self.mods, 'value') else str(self.mods),
+            'pp': self.pp,
+            'sr': self.sr,
+            'score': self.score,
+            'max_combo': self.max_combo,
+            'acc': self.acc,
+            'n300': self.n300,
+            'n100': self.n100,
+            'n50': self.n50,
+            'nmiss': self.nmiss,
+            'ngeki': self.ngeki,
+            'nkatu': self.nkatu,
+            'grade': self.grade.value if hasattr(self.grade, 'value') else str(self.grade),
+            'passed': self.passed,
+            'perfect': self.perfect,
+            'status': self.status.value if hasattr(self.status, 'value') else str(self.status),
+            'client_time': self.client_time.isoformat() if self.client_time else None,
+            'server_time': self.server_time.isoformat() if self.server_time else None,
+            'time_elapsed': self.time_elapsed,
+            'client_flags': self.client_flags.value if hasattr(self.client_flags, 'value') else str(self.client_flags),
+            'client_checksum': self.client_checksum,
+            'rank': self.rank
+        }
+
+        # Only include beatmap id if available
+        if self.bmap:
+            data['beatmap_id'] = self.bmap.id if hasattr(self.bmap, 'id') else None
+
+        # Only include player id if available
+        if self.player:
+            data['player_id'] = self.player.id if hasattr(self.player, 'id') else None
+
+        return json.dumps(data)
 
     def __repr__(self) -> str:
         # TODO: i really need to clean up my reprs

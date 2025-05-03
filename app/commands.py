@@ -27,6 +27,7 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
+from app.api.v2.common import json
 import cpuinfo
 import psutil
 import timeago
@@ -648,9 +649,10 @@ async def _map(ctx: Context) -> str | None:
     # XXX: not sure if getting md5s from sql
     # for updating cache would be faster?
     # surely this will not scale as well...
-
+    ranktype = None
     async with app.state.services.database.transaction():
         if ctx.args[1] == "set":
+            ranktype = "set"
             # update all maps in the set
             for _bmap in bmap.set.maps:
                 await maps_repo.partial_update(_bmap.id, status=new_status, frozen=True)
@@ -669,6 +671,7 @@ async def _map(ctx: Context) -> str | None:
             ]
 
         else:
+            ranktype = "map"
             # update only map
             await maps_repo.partial_update(bmap.id, status=new_status, frozen=True)
 
@@ -681,7 +684,9 @@ async def _map(ctx: Context) -> str | None:
 
         # deactivate rank requests for all ids
         await map_requests_repo.mark_batch_as_inactive(map_ids=modified_beatmap_ids)
-
+    pubsub = app.state.services.redis.pubsub()
+    data = json.dumps({"map_ids": modified_beatmap_ids, "ranktype": ranktype, "type": ctx.args[0]})
+    await pubsub.execute_command("PUBLISH", "ex:map_status_change", data)
     return f"{bmap.embed} updated to {new_status!s}."
 
 
@@ -696,6 +701,8 @@ ACTION_STRINGS = {
     "silence": "Silenced for",
     "unsilence": "Unsilenced for",
     "note": "Note added:",
+    "whitelist": "Whitelisted",
+    "unwhitelist": "Unwhitelisted"
 }
 
 
@@ -821,6 +828,65 @@ async def unsilence(ctx: Context) -> str | None:
     await target.unsilence(ctx.player, reason)
     return f"{target} was unsilenced."
 
+@command(Privileges.MODERATOR, hidden=True)
+async def whitelist(ctx: Context) -> str | None:
+    """Adds the verified (whitelisted) role to the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !whitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if target.priv & Privileges.WHITELISTED:
+        return "The user is already whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "whitelist",
+            "msg": "",
+        },
+    )
+
+    await target.add_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully whitelisted."
+
+
+@command(Privileges.MODERATOR, hidden=True)
+async def unwhitelist(ctx: Context) -> str | None:
+    """Removes the verified (whitelisted) role from the specified user, making them invulnerable to first-stage anticheat checks."""
+    if len(ctx.args) < 1:
+        return "Invalid syntax: !unwhitelist <name>"
+
+    name = " ".join(ctx.args)
+    target = await app.state.sessions.players.from_cache_or_sql(name=name)
+    if not target:
+        return f'"{name}" not found.'
+
+    if not target.priv & Privileges.WHITELISTED:
+        return "The user is not whitelisted."
+
+    await app.state.services.database.execute(
+        "INSERT INTO logs "
+        "(`from`, `to`, `action`, `msg`, `time`) "
+        "VALUES (:from, :to, :action, :msg, NOW())",
+        {
+            "from": ctx.player.id,
+            "to": target.id,
+            "action": "unwhitelist",
+            "msg": "",
+        },
+    )
+
+    await target.remove_privs(Privileges.WHITELISTED)
+    return f"{target.embed} was successfully un-whitelisted."
+
 
 """ Admin commands
 # The commands below are relatively dangerous,
@@ -892,67 +958,67 @@ async def user(ctx: Context) -> str | None:
         ),
     )
 
+if app.settings.DISALLOW_INGAME_RESTRICTION == False:
+    @command(Privileges.ADMINISTRATOR, hidden=True)
+    async def restrict(ctx: Context) -> str | None:
+        """Restrict a specified player's account, with a reason."""
+        if len(ctx.args) < 2:
+            return "Invalid syntax: !restrict <name> <reason>"
 
-@command(Privileges.ADMINISTRATOR, hidden=True)
-async def restrict(ctx: Context) -> str | None:
-    """Restrict a specified player's account, with a reason."""
-    if len(ctx.args) < 2:
-        return "Invalid syntax: !restrict <name> <reason>"
+        # find any user matching (including offline).
+        target = await app.state.sessions.players.from_cache_or_sql(name=ctx.args[0])
+        if not target:
+            return f'"{ctx.args[0]}" not found.'
 
-    # find any user matching (including offline).
-    target = await app.state.sessions.players.from_cache_or_sql(name=ctx.args[0])
-    if not target:
-        return f'"{ctx.args[0]}" not found.'
+        if target.priv & Privileges.STAFF and not ctx.player.priv & Privileges.DEVELOPER:
+            return "Only developers can manage staff members."
 
-    if target.priv & Privileges.STAFF and not ctx.player.priv & Privileges.DEVELOPER:
-        return "Only developers can manage staff members."
+        if target.restricted:
+            return f"{target} is already restricted!"
 
-    if target.restricted:
-        return f"{target} is already restricted!"
+        reason = " ".join(ctx.args[1:])
 
-    reason = " ".join(ctx.args[1:])
+        if reason in SHORTHAND_REASONS:
+            reason = SHORTHAND_REASONS[reason]
 
-    if reason in SHORTHAND_REASONS:
-        reason = SHORTHAND_REASONS[reason]
+        await target.restrict(admin=ctx.player, reason=reason)
 
-    await target.restrict(admin=ctx.player, reason=reason)
+        # refresh their client state
+        if target.is_online:
+            target.logout()
 
-    # refresh their client state
-    if target.is_online:
-        target.logout()
+        return f"{target} was restricted."
 
-    return f"{target} was restricted."
+if app.settings.DISALLOW_INGAME_RESTRICTION == False:
+    @command(Privileges.ADMINISTRATOR, hidden=True)
+    async def unrestrict(ctx: Context) -> str | None:
+        """Unrestrict a specified player's account, with a reason."""
+        if len(ctx.args) < 2:
+            return "Invalid syntax: !unrestrict <name> <reason>"
 
+        # find any user matching (including offline).
+        target = await app.state.sessions.players.from_cache_or_sql(name=ctx.args[0])
+        if not target:
+            return f'"{ctx.args[0]}" not found.'
 
-@command(Privileges.ADMINISTRATOR, hidden=True)
-async def unrestrict(ctx: Context) -> str | None:
-    """Unrestrict a specified player's account, with a reason."""
-    if len(ctx.args) < 2:
-        return "Invalid syntax: !unrestrict <name> <reason>"
+        if target.priv & Privileges.STAFF and not ctx.player.priv & Privileges.DEVELOPER:
+            return "Only developers can manage staff members."
 
-    # find any user matching (including offline).
-    target = await app.state.sessions.players.from_cache_or_sql(name=ctx.args[0])
-    if not target:
-        return f'"{ctx.args[0]}" not found.'
+        if not target.restricted:
+            return f"{target} is not restricted!"
 
-    if target.priv & Privileges.STAFF and not ctx.player.priv & Privileges.DEVELOPER:
-        return "Only developers can manage staff members."
+        reason = " ".join(ctx.args[1:])
 
-    if not target.restricted:
-        return f"{target} is not restricted!"
+        if reason in SHORTHAND_REASONS:
+            reason = SHORTHAND_REASONS[reason]
 
-    reason = " ".join(ctx.args[1:])
+        await target.unrestrict(ctx.player, reason)
 
-    if reason in SHORTHAND_REASONS:
-        reason = SHORTHAND_REASONS[reason]
+        # refresh their client state
+        if target.is_online:
+            target.logout()
 
-    await target.unrestrict(ctx.player, reason)
-
-    # refresh their client state
-    if target.is_online:
-        target.logout()
-
-    return f"{target} was unrestricted."
+        return f"{target} was unrestricted."
 
 
 @command(Privileges.ADMINISTRATOR, hidden=True)
@@ -1068,7 +1134,7 @@ str_priv_dict = {
     "alumni": Privileges.ALUMNI,
     "tournament": Privileges.TOURNEY_MANAGER,
     "nominator": Privileges.NOMINATOR,
-    "mod": Privileges.MODERATOR,
+    "moderator": Privileges.MODERATOR,
     "admin": Privileges.ADMINISTRATOR,
     "developer": Privileges.DEVELOPER,
 }

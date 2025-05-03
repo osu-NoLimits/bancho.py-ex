@@ -39,6 +39,7 @@ async def get_maps(
         frozen=frozen,
         page=page,
         page_size=page_size,
+        order_by="plays",
     )
     total_maps = await maps_repo.fetch_count(
         server=server,

@@ -17,6 +17,8 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
+import app.metrics
+import databases.core
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
@@ -100,7 +102,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py-ex v{app.settings.VERSION}ex
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -108,7 +110,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/osu-NoLimits/bancho.py-ex">Source code</a> fork of <a href="https://github.com/osuAkatsuki/bancho.py">bancho.py</a>
 </body>
 </html>""",
     )
@@ -428,6 +430,9 @@ class SendMessage(BasePacket):
 
         player.update_latest_activity_soon()
 
+        if app.metrics.enabled:
+            app.metrics.increment("ex_chat_messages")
+
         log(f"{player} @ {t_chan}: {msg}", Ansi.LCYAN)
 
         with open(DISK_CHAT_LOG_FILE, "a+") as f:
@@ -463,9 +468,9 @@ class StatsUpdateRequest(BasePacket):
 # TODO: these should probably be moved to the config.
 WELCOME_MSG = "\n".join(
     (
-        f"Welcome to {BASE_DOMAIN}.",
+        f"Welcome to {app.settings.SERVER_NAME}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_URL}]!",
         "Enjoy the server!",
     ),
 )
@@ -477,7 +482,7 @@ RESTRICTED_MSG = (
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(
-    f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
+    f"Welcome back to {app.settings.SERVER_NAME}!\nRunning bancho.py v{app.settings.VERSION}ex.",
 )
 
 
@@ -865,6 +870,9 @@ async def handle_osu_login_request(
     data = bytearray(app.packets.protocol_version(19))
     data += app.packets.login_reply(player.id)
 
+    if app.metrics.enabled:
+        app.metrics.increment("ex_logins")
+
     # *real* client privileges are sent with this packet,
     # then the user's apparent privileges are sent in the
     # userPresence packets to other players. we'll send
@@ -1019,6 +1027,13 @@ async def handle_osu_login_request(
     # add `p` to the global player list,
     # making them officially logged in.
     app.state.sessions.players.append(player)
+
+    if app.metrics.enabled:
+        if not player.restricted:
+            app.metrics.increment("ex_online_players")
+
+        time_taken = time.time() - login_time
+        app.metrics.histrogram("ex_login_time", time_taken)
 
     if app.state.services.datadog:
         if not player.restricted:
