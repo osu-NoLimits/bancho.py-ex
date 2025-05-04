@@ -9,6 +9,7 @@ from sqlalchemy import String
 from sqlalchemy import insert
 from sqlalchemy import select
 from sqlalchemy.dialects.mysql import TINYINT
+from sqlalchemy.sql import func
 
 import app.state.services
 from app.repositories import Base
@@ -72,6 +73,14 @@ async def fetch_many(
 
     ratings = await app.state.services.database.fetch_all(select_stmt)
     return cast(list[Rating], ratings)
+
+
+async def get_map_rating(map_md5: str | None = None) -> float:
+    result = await app.state.services.database.fetch_val(
+        select(func.avg(RatingsTable.rating)).where(RatingsTable.map_md5 == map_md5)
+    )
+
+    return result or 0.0
 
 
 async def fetch_one(userid: int, map_md5: str) -> Rating | None:

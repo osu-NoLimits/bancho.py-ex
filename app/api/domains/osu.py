@@ -1115,11 +1115,8 @@ async def osuRate(
         # the client is submitting a rating for the map.
         await ratings_repo.create(userid=player.id, map_md5=map_md5, rating=rating)
 
-    map_ratings = await ratings_repo.fetch_many(map_md5=map_md5)
-    ratings = [row["rating"] for row in map_ratings]
-
     # send back the average rating
-    avg = sum(ratings) / len(ratings)
+    avg = await ratings_repo.get_map_rating(map_md5=map_md5)
     return Response(f"alreadyvoted\n{avg}".encode())
 
 
@@ -1347,13 +1344,7 @@ async def getScores(
         personal_best_score_row = None
 
     # fetch beatmap rating
-    map_ratings = await ratings_repo.fetch_many(
-        map_md5=bmap.md5,
-        page=None,
-        page_size=None,
-    )
-    ratings = [row["rating"] for row in map_ratings]
-    map_avg_rating = sum(ratings) / len(ratings) if ratings else 0.0
+    map_avg_rating = await ratings_repo.get_map_rating(map_md5=map_md5)
 
     ## construct response for osu! client
 
