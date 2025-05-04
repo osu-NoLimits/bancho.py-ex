@@ -401,7 +401,11 @@ async def api_get_player_scores(
     query = [
         "SELECT t.id, t.map_md5, t.score, t.pp, t.acc, t.max_combo, "
         "t.mods, t.n300, t.n100, t.n50, t.nmiss, t.ngeki, t.nkatu, t.grade, "
-        "t.status, t.mode, t.play_time, t.time_elapsed, t.perfect "
+        "t.status, t.mode, t.play_time, t.time_elapsed, t.perfect, "
+        "b.id as map_id, b.server, b.set_id, b.status as map_status, b.md5, b.artist, b.title, "
+        "b.version, b.creator, b.filename, b.last_update, b.total_length, "
+        "b.max_combo as map_max_combo, b.frozen, b.plays, b.passes, b.mode as map_mode, b.bpm, b.cs, "
+        "b.ar, b.od, b.hp, b.diff "
         "FROM scores t "
         "INNER JOIN maps b ON t.map_md5 = b.md5 "
         "WHERE t.userid = :user_id AND t.mode = :mode",
@@ -438,15 +442,53 @@ async def api_get_player_scores(
     query.append(f"ORDER BY {sort} DESC LIMIT :limit")
     params["limit"] = limit
 
-    rows = [
-        dict(row)
-        for row in await app.state.services.database.fetch_all(" ".join(query), params)
-    ]
+    rows = [dict(row) for row in await app.state.services.database.fetch_all(" ".join(query), params)]
 
-    # fetch & return info from sql
-    for row in rows:
-        bmap = await Beatmap.from_md5(row.pop("map_md5"))
-        row["beatmap"] = bmap.as_dict if bmap else None
+    rows = [
+        {
+            "id": row.get("id"),
+            "score": row.get("score"),
+            "pp": row.get("pp"),
+            "acc": row.get("acc"),
+            "max_combo": row.get("max_combo"),
+            "mods": row.get("mods"),
+            "n300": row.get("n300"),
+            "n100": row.get("n100"),
+            "n50": row.get("n50"),
+            "nmiss": row.get("nmiss"),
+            "ngeki": row.get("ngeki"),
+            "nkatu": row.get("nkatu"),
+            "grade": row.get("grade"),
+            "status": row.get("status"),
+            "mode": row.get("mode"),
+            "play_time": row.get("play_time"),
+            "time_elapsed": row.get("time_elapsed"),
+            "perfect": row.get("perfect"),
+            "beatmap": {
+                "md5": row.get("md5"),
+                "id": row.get("map_id"),
+                "set_id": row.get("set_id"),
+                "artist": row.get("artist"),
+                "title": row.get("title"),
+                "version": row.get("version"),
+                "creator": row.get("creator"),
+                "last_update": row.get("last_update"),
+                "total_length": row.get("total_length"),
+                "max_combo": row.get("max_combo"),
+                "status": row.get("map_status"),
+                "plays": row.get("plays"),
+                "passes": row.get("passes"),
+                "mode": row.get("map_mode"),
+                "bpm": row.get("bpm"),
+                "cs": row.get("cs"),
+                "od": row.get("od"),
+                "ar": row.get("ar"),
+                "hp": row.get("hp"),
+                "diff": row.get("diff"),
+            },
+        }
+        for row in rows
+    ]
 
     clan: clans_repo.Clan | None = None
     if player.clan_id:
