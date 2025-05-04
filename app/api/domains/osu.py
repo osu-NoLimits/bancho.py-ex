@@ -978,21 +978,9 @@ async def osuSubmitModularSelector(
         if score.bmap.awards_ranked_pp and not score.player.restricted:
             unlocked_achievements: list[Achievement] = []
 
-            server_achievements = await achievements_usecases.fetch_many()
-            player_achievements = await user_achievements_usecases.fetch_many(
-                user_id=score.player.id,
-            )
+            locked_achievements = await achievements_usecases.fetch_user_locked(user_id=score.player.id)
 
-            for server_achievement in server_achievements:
-                player_unlocked_achievement = any(
-                    player_achievement
-                    for player_achievement in player_achievements
-                    if player_achievement["achid"] == server_achievement["id"]
-                )
-                if player_unlocked_achievement:
-                    # player already has this achievement.
-                    continue
-
+            for server_achievement in locked_achievements:
                 achievement_condition = server_achievement["cond"]
                 if achievement_condition(score, score.mode.as_vanilla):
                     await user_achievements_usecases.create(

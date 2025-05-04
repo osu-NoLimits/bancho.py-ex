@@ -9,6 +9,7 @@ import app.state.services
 from app._typing import UNSET
 from app._typing import _UnsetSentinel
 from app.repositories import Base
+from app.repositories import user_achievements as ua
 
 if TYPE_CHECKING:
     from app.objects.score import Score
@@ -120,6 +121,29 @@ async def fetch_many(
     select_stmt = select(*READ_PARAMS)
     if page is not None and page_size is not None:
         select_stmt = select_stmt.limit(page_size).offset((page - 1) * page_size)
+
+    achievements = await app.state.services.database.fetch_all(select_stmt)
+    for achievement in achievements:
+        achievement["cond"] = eval(f'lambda score, mode_vn: {achievement["cond"]}')
+
+    return cast(list[Achievement], achievements)
+
+
+async def fetch_user_locked(
+    user_id: int | None = None,
+    *,
+    UserAchievementsTable: type[ua.UserAchievementsTable],
+) -> list[Achievement]:
+    """Fetch a list of achievements."""
+
+    subq = (
+        select(1)
+        .where(UserAchievementsTable.achid == AchievementsTable.id)
+        .where(UserAchievementsTable.userid == user_id)
+        .exists()
+    )
+
+    select_stmt = (select(*READ_PARAMS)).where(~subq)
 
     achievements = await app.state.services.database.fetch_all(select_stmt)
     for achievement in achievements:
