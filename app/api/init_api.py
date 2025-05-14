@@ -10,6 +10,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from app import metrics
+import app.settings
 import starlette.routing
 from fastapi import FastAPI
 from fastapi import status
@@ -22,6 +23,7 @@ from fastapi.responses import Response
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import ClientDisconnect
 
+from app.api.ircserver import IRCServer
 from .start import *
 
 import app.bg_loops
@@ -89,6 +91,16 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
     await app.state.services.redis.initialize()  # type: ignore[unused-awaitable]
 
     await start_pubsub_recievers()
+
+    if(app.settings.ENABLE_IRC):
+        loop = asyncio.get_event_loop()
+
+        app.state.services.irc = IRCServer(
+            host=app.settings.IRC_HOST,
+            port=app.settings.IRC_PORT,
+            loop=loop
+        )
+        await app.state.services.irc.start()
 
     metrics.start_metrics_server()
 

@@ -42,7 +42,7 @@ class UsersTable(Base):
     custom_badge_icon = Column(String(64))
     userpage_content = Column(String(2048, collation="utf8"))
     api_key = Column(String(36))
-
+    irc_key = Column(String(36))
     __table_args__ = (
         Index("users_priv_index", priv),
         Index("users_clan_id_index", clan_id),
@@ -52,6 +52,7 @@ class UsersTable(Base):
         Index("users_email_uindex", email, unique=True),
         Index("users_name_uindex", name, unique=True),
         Index("users_safe_name_uindex", safe_name, unique=True),
+        Index("users_irc_key_uindex", irc_key, unique=True),
     )
 
 
@@ -124,10 +125,11 @@ async def fetch_one(
     id: int | None = None,
     name: str | None = None,
     email: str | None = None,
+    irc_key: str | None = None,
     fetch_all_fields: bool = False,  # TODO: probably remove this if possible
 ) -> User | None:
     """Fetch a single user from the database."""
-    if id is None and name is None and email is None:
+    if id is None and name is None and email is None and irc_key is None:
         raise ValueError("Must provide at least one parameter.")
 
     if fetch_all_fields:
@@ -141,6 +143,8 @@ async def fetch_one(
         select_stmt = select_stmt.where(UsersTable.safe_name == make_safe_name(name))
     if email is not None:
         select_stmt = select_stmt.where(UsersTable.email == email)
+    if irc_key is not None:
+        select_stmt = select_stmt.where(UsersTable.irc_key == irc_key)
 
     user = await app.state.services.database.fetch_one(select_stmt)
     return cast(User | None, user)

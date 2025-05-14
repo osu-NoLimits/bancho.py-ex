@@ -39,6 +39,7 @@ services:
     image: bancho:latest
     ports:
       - ${APP_PORT}:${APP_PORT}
+      - ${IRC_PORT}:${IRC_PORT}
       - ${PROMETHEUS_PORT}:${PROMETHEUS_PORT}
     depends_on:
       mysql:

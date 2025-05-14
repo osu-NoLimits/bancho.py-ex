@@ -227,6 +227,9 @@ class Player:
         is_bot_client: bool = False,
         is_tourney_client: bool = False,
         api_key: str | None = None,
+        irc_key: str | None = None,
+        irc_client: bool | False = False,
+        **kwargs
     ) -> None:
         if geoloc is None:
             geoloc = {
@@ -253,7 +256,8 @@ class Player:
         self.is_bot_client = is_bot_client
         self.is_tourney_client = is_tourney_client
         self.api_key = api_key
-
+        self.irc_key = irc_key
+        self.irc_client = irc_client
         # avoid enqueuing packets to bot accounts.
         if self.is_bot_client:
 
@@ -370,6 +374,26 @@ class Player:
                 score = s
 
         return score
+    
+    @classmethod
+    async def from_irc(cls, irc_key: str) -> Player:
+        player_data = await users_repo.fetch_one(
+            irc_key=irc_key,
+            fetch_all_fields=True,
+        )
+
+        try:
+            player = cls(
+                **player_data,
+                login_time=time.time(),
+                token=cls.generate_token(),
+            )
+        except Exception as e:
+            log(f"Failed to create Player: {e}", Ansi.LRED)
+            raise
+
+
+        return player
 
     @staticmethod
     def generate_token() -> str:

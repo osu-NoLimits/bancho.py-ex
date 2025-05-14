@@ -168,6 +168,7 @@ class Players(list[Player]):
     def get(
         self,
         token: str | None = None,
+        irc_key: str | None = None,
         id: int | None = None,
         name: str | None = None,
     ) -> Player | None:
@@ -175,6 +176,9 @@ class Players(list[Player]):
         for player in self:
             if token is not None:
                 if player.token == token:
+                    return player
+            elif irc_key is not None:
+                if player.irc_key == irc_key:
                     return player
             elif id is not None:
                 if player.id == id:
@@ -189,12 +193,14 @@ class Players(list[Player]):
         self,
         id: int | None = None,
         name: str | None = None,
+        irc_key: str | None = None,
     ) -> Player | None:
         """Get a player by token, id, or name from sql."""
         # try to get from sql.
         player = await users_repo.fetch_one(
             id=id,
             name=name,
+            irc_key=irc_key,
             fetch_all_fields=True,
         )
         if player is None:
@@ -231,12 +237,13 @@ class Players(list[Player]):
         self,
         id: int | None = None,
         name: str | None = None,
+        irc_key: str | None = None,
     ) -> Player | None:
         """Try to get player from cache, or sql as fallback."""
-        player = self.get(id=id, name=name)
+        player = self.get(id=id, name=name, irc_key=irc_key)
         if player is not None:
             return player
-        player = await self.get_sql(id=id, name=name)
+        player = await self.get_sql(id=id, name=name, irc_key=irc_key)
         if player is not None:
             return player
 

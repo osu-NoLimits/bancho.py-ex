@@ -38,6 +38,11 @@ SERVER_NAME = os.environ["SERVER_NAME"]
 DISALLOW_INGAME_RESTRICTION = read_bool(os.environ["DISALLOW_INGAME_RESTRICTION"])
 DISALLOW_INGAME_REGISTRATION = read_bool(os.environ["DISALLOW_INGAME_REGISTRATION"])
 
+# irc
+ENABLE_IRC = read_bool(os.environ["ENABLE_IRC"])
+IRC_HOST = os.environ["IRC_HOST"]
+IRC_PORT = int(os.environ["IRC_PORT"])
+
 ENABLE_PROMETHEUS= read_bool(os.environ["ENABLE_PROMETHEUS"])
 PROMETHEUS_PORT = int(os.environ["PROMETHEUS_PORT"])
 
