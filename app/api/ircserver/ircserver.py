@@ -517,7 +517,7 @@ class IRCClient:
             if not recipient:
                 return 401
  
-            if recipient.bot_client:
+            if recipient.is_bot_client:
                 if message.startswith(app.settings.COMMAND_PREFIX):
                     cmd = await commands.process_commands(fro, recipient, message)
                 else:

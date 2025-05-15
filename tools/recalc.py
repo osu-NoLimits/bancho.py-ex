@@ -87,11 +87,11 @@ async def recalculate_score(
             {"new_pp": new_pp, "id": score["id"]},
         )
 
-    if debug_mode_enabled:
-        print(
-            f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
-        )
-
+        if debug_mode_enabled:
+            print(
+                f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+            )
+            
     except Exception as e:
         # Log the error and continue processing other scores
         print(f"Failed to recalculate score ID {score['id']}: {e}")
