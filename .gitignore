@@ -20,3 +20,6 @@ poetry.toml
 logging.yaml
 logs.log
 caps.json
+
+docker-compose.override.yml
+..env.swp
