@@ -19,6 +19,12 @@ run-s:
 run-bg:
 	docker compose up -d bancho mysql redis
 
+run-cfd:
+	docker compose -f docker-compose.cloudflared.yml up
+
+run-cfd-bg:
+	docker compose -f docker-compose.cloudflared.yml up -d
+
 run-caddy:
 	caddy run --envfile .env --config ext/Caddyfile
 
