@@ -27,7 +27,9 @@ from typing import Optional
 from typing import TypedDict
 from urllib.parse import urlparse
 
+from sqlalchemy import update
 from app.api.v2.common import json
+
 import cpuinfo
 import psutil
 import timeago
@@ -2430,13 +2432,12 @@ async def clan_disband(ctx: Context) -> str | None:
     await clans_repo.delete_one(clan["id"])
 
     # remove all members from the clan
-    clan_member_ids = [
-        clan_member["id"]
-        for clan_member in await users_repo.fetch_many(clan_id=clan["id"])
-    ]
-    for member_id in clan_member_ids:
-        await users_repo.partial_update(member_id, clan_id=0, clan_priv=0)
+    clan_member_ids = [clan_member["id"] for clan_member in await users_repo.fetch_many(clan_id=clan["id"])]
 
+    await app.state.services.database.execute(
+        update(users_repo.UsersTable).where(users_repo.UsersTable.clan_id == clan["id"]).values(clan_id=0, clan_priv=0)
+    )
+    for member_id in clan_member_ids:
         member = app.state.sessions.players.get(id=member_id)
         if member:
             member.clan_id = None
