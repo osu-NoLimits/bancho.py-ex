@@ -1,19 +1,58 @@
-# bancho.py
+# bancho.py-ex
+![Discord](https://img.shields.io/discord/1295422749807743037?label=Discord&link=https%3A%2F%2Fdiscord.gg%2F6DH8bB24p6&color=1783a3&link=https%3A%2F%2Fgithub.com%2Fosu-NoLimits%2FShiina-Web)
+![GitHub contributors](https://img.shields.io/github/contributors/osu-NoLimits/bancho.py-ex?label=Contributors&color=1783a3&link=https%3A%2F%2Fgithub.com%2Fosu-NoLimits%2Fbancho.py-ex)
+![GitHub License](https://img.shields.io/github/license/osu-NoLimits/Shiina-Web?label=License&color=1783a3&link=https%3A%2F%2Fgithub.com%2Fosu-NoLimits%2Fbancho.py-ex)
+![GitHub Created At](https://img.shields.io/github/created-at/osu-NoLimits/bancho.py-ex?label=Created&color=1783a3&link=https%3A%2F%2Fgithub.com%2Fosu-NoLimits%2Shiina-Web)
+![Static Badge](https://img.shields.io/badge/available%20-%20Test?label=Documentation&color=1783a3&link=https%3A%2F%2Fosu-nolimits.github.io%2Fwiki%2F)
+![GitHub Repo stars](https://img.shields.io/github/stars/osu-NoLimits/bancho.py-ex)
 
-[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/osuAkatsuki/bancho.py/master.svg)](https://results.pre-commit.ci/latest/github/osuAkatsuki/bancho.py/master)
-[![Discord](https://discordapp.com/api/guilds/748687781605408908/widget.png?style=shield)](https://discord.gg/ShEQgUx)
+**bancho.py-ex** is a fork of [**bancho.py**](https://github.com/osuAkatsuki), designed to be more suitable for public osu! server hosting.
 
-**bancho.py** is an in-progress osu! server implementation for developers of all levels
-of experience interested in hosting their own osu private server instance(s).
+---
 
-the project is developed primarily by the [Akatsuki](https://akatsuki.gg/) team,
-and our aim is to create the most easily maintainable, reliable, and feature-rich
-osu! server implementation available.
+## 🛠️ Installation
 
-If you are interested in running or contributing to **bancho.py**, you should head over to the **[bancho.py wiki](https://github.com/osuAkatsuki/bancho.py/wiki)**.
+For installation look up our [new documentation](https://osu-nolimits.github.io/wiki/)
 
-## License
+---
 
-**bancho.py** is licensed under the [MIT License](https://opensource.org/license/mit/). Please see the [LICENSE](https://github.com/osuAkatsuki/bancho.py/blob/master/LICENSE) file for more information.
+## ✨ Features
+
+- 🔁 **Redis PubSub support** ([Docs](https://github.com/osu-NoLimits/bancho.py-ex/wiki/Pubsubs)):
+  - Rank or unrank beatmaps
+  - Restrict / unrestrict users
+  - Wipe user data
+  - Send alerts to all online players
+  - Grant donator status
+  - Modify user privileges
+- 💼 **Access to API on localhost:10000**
+- 🪫 **Set PP Cap Autoban** (optional)
+- 💬 **IRC Server** (optional)
+- 📊 **Prometheus metrics** (optional)
+- 🥇 **Webhook for first-place scores** (optional)
+- 🕹️ **Support for osu! 2016 client** (optional)
+- ⚙️ **Configure server name and Discord invite via `.env`—no code changes required**
+- 🛠️ **Fixes and performance optimizations**
+
+---
+
+## 🌐 Frontend Support
+
+- 🖼️ [Shiina Web (Official)](https://github.com/osu-NoLimits/Shiina-Web/tree/main)
+- ✔️ Compatible with all other **bancho.py**-based frontends
+
+---
+
+## 📄 License
+
+Licensed under the [MIT License](https://opensource.org/license/mit/).  
+See the [LICENSE](https://github.com/osuAkatsuki/bancho.py/blob/master/LICENSE) for more details.
+
+---
+
+## **Contributors**
+
+
+<a href="https://github.com/osu-NoLimits/bancho.py-ex/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=osu-NoLimits/bancho.py-ex" />
+</a>

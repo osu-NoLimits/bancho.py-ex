@@ -16,6 +16,9 @@ def _default_processor(data: Any) -> Any:
         return [_default_processor(v) for v in data]
     else:
         return data
+    
+def load(data: bytes) -> Any:
+    return orjson.loads(data)
 
 
 def dumps(data: Any) -> bytes:

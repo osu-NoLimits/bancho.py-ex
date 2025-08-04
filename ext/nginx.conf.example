@@ -6,6 +6,11 @@ upstream bancho {
     server 127.0.0.1:${APP_PORT};
 }
 
+upstream shiina {
+    server 127.0.0.1:3010;
+}
+
+
 server {
 	listen 443 ssl;
 	server_name c.${DOMAIN} ce.${DOMAIN} c4.${DOMAIN} osu.${DOMAIN} b.${DOMAIN} api.${DOMAIN};
@@ -22,6 +27,25 @@ server {
 		add_header Access-Control-Allow-Origin *;
 		proxy_redirect off;
 		proxy_pass http://bancho;
+	}
+}
+
+server {
+	listen 443 ssl;
+	server_name ${DOMAIN};
+	client_max_body_size 20M;
+
+	ssl_certificate     ${SSL_CERT_PATH};
+	ssl_certificate_key ${SSL_KEY_PATH};
+	ssl_ciphers "EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH:@SECLEVEL=1";
+
+	location / {
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+		proxy_set_header X-Real-IP  $remote_addr;
+		proxy_set_header Host $http_host;
+		add_header Access-Control-Allow-Origin *;
+		proxy_redirect off;
+		proxy_pass http://shiina;
 	}
 }
 

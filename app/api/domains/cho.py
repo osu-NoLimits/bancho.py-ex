@@ -17,6 +17,8 @@ from typing import TypedDict
 from zoneinfo import ZoneInfo
 
 import bcrypt
+import app.metrics
+import databases.core
 from fastapi import APIRouter
 from fastapi import Response
 from fastapi.param_functions import Header
@@ -100,7 +102,7 @@ async def bancho_http_handler() -> Response:
     return HTMLResponse(
         f"""
 <!DOCTYPE html>
-<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py v{app.settings.VERSION}
+<body style="font-family: monospace; white-space: pre-wrap;">Running bancho.py-ex v{app.settings.VERSION}ex
 
 <a href="online">{len(players)} online players</a>
 <a href="matches">{len(matches)} matches</a>
@@ -108,7 +110,7 @@ async def bancho_http_handler() -> Response:
 <b>packets handled ({len(packets)})</b>
 {new_line.join([f"{packet.name} ({packet.value})" for packet in packets])}
 
-<a href="https://github.com/osuAkatsuki/bancho.py">Source code</a>
+<a href="https://github.com/osu-NoLimits/bancho.py-ex">Source code</a> fork of <a href="https://github.com/osuAkatsuki/bancho.py">bancho.py</a>
 </body>
 </html>""",
     )
@@ -209,8 +211,8 @@ async def bancho_handler(
         return Response(
             content=(
                 app.packets.notification("Server has restarted.")
-                + app.packets.restart_server(0)  # ms until reconnection
-            ),
+                + app.packets.restart_server(0)
+            ),  # ms until reconnection
         )
 
     if player.restricted:
@@ -428,6 +430,9 @@ class SendMessage(BasePacket):
 
         player.update_latest_activity_soon()
 
+        if app.metrics.enabled:
+            app.metrics.increment("ex_chat_messages")
+
         log(f"{player} @ {t_chan}: {msg}", Ansi.LCYAN)
 
         with open(DISK_CHAT_LOG_FILE, "a+") as f:
@@ -463,9 +468,9 @@ class StatsUpdateRequest(BasePacket):
 # TODO: these should probably be moved to the config.
 WELCOME_MSG = "\n".join(
     (
-        f"Welcome to {BASE_DOMAIN}.",
+        f"Welcome to {app.settings.SERVER_NAME}.",
         "To see a list of commands, use !help.",
-        "We have a public (Discord)[https://discord.gg/ShEQgUx]!",
+        f"We have a public (Discord)[{app.settings.DISCORD_URL}]!",
         "Enjoy the server!",
     ),
 )
@@ -477,7 +482,7 @@ RESTRICTED_MSG = (
 )
 
 WELCOME_NOTIFICATION = app.packets.notification(
-    f"Welcome back to {BASE_DOMAIN}!\nRunning bancho.py v{app.settings.VERSION}.",
+    f"Welcome back to {app.settings.SERVER_NAME}!\nRunning bancho.py v{app.settings.VERSION}ex.",
 )
 
 
@@ -564,29 +569,35 @@ async def get_allowed_client_versions(osu_stream: OsuStream) -> set[date] | None
 
     Returns None if the connection to the osu! api fails.
     """
-    osu_stream_str = osu_stream.value
-    if osu_stream in (OsuStream.STABLE, OsuStream.BETA):
-        osu_stream_str += "40"  # i wonder why this exists
-
-    response = await services.http_client.get(
-        OSU_API_V2_CHANGELOG_URL,
-        params={"stream": osu_stream_str},
-    )
-    if not response.is_success:
-        return None
-
+    osu_stream_strs = []
     allowed_client_versions: set[date] = set()
-    for build in response.json()["builds"]:
-        version = date(
-            int(build["version"][0:4]),
-            int(build["version"][4:6]),
-            int(build["version"][6:8]),
+
+    if osu_stream == OsuStream.STABLE:
+        osu_stream_strs.append(osu_stream.value + "40")  # i wonder why this exists
+    elif osu_stream == OsuStream.TOURNEY:
+        # osu!tourney clients are allowed to connect with any version
+        osu_stream_strs.append("stable40")
+        osu_stream_strs.append("cuttingedge")
+
+    for osu_stream_str in osu_stream_strs:
+        response = await services.http_client.get(
+            OSU_API_V2_CHANGELOG_URL,
+            params={"stream": osu_stream_str},
         )
-        allowed_client_versions.add(version)
-        if any(entry["major"] for entry in build["changelog_entries"]):
-            # this build is a major iteration to the client
-            # don't allow anything older than this
-            break
+        if not response.is_success:
+            return None
+
+        for build in response.json()["builds"]:
+            version = date(
+                int(build["version"][0:4]),
+                int(build["version"][4:6]),
+                int(build["version"][6:8]),
+            )
+            allowed_client_versions.add(version)
+            if any(entry["major"] for entry in build["changelog_entries"]):
+                # this build is a major iteration to the client
+                # don't allow anything older than this
+                break
 
     return allowed_client_versions
 
@@ -722,17 +733,16 @@ async def handle_osu_login_request(
             ),
         }
 
-    if osu_version.stream is OsuStream.TOURNEY and not (
-        user_info["priv"] & Privileges.DONATOR
-        and user_info["priv"] & Privileges.UNRESTRICTED
-    ):
-        # trying to use tourney client with insufficient privileges.
-        return {
-            "osu_token": "no",
-            "response_body": app.packets.login_reply(
-                LoginFailureReason.AUTHENTICATION_FAILED,
-            ),
-        }
+    if osu_version.stream is OsuStream.TOURNEY:
+        allowed_priv = Privileges.DONATOR | Privileges.TOURNEY_MANAGER | Privileges.UNRESTRICTED
+        if user_info["priv"] & allowed_priv <= Privileges.UNRESTRICTED:
+            # trying to use tourney client with insufficient privileges.
+            return {
+                "osu_token": "no",
+                "response_body": app.packets.login_reply(
+                    LoginFailureReason.AUTHENTICATION_FAILED,
+                ),
+            }
 
     """ login credentials verified """
 
@@ -865,6 +875,9 @@ async def handle_osu_login_request(
     data = bytearray(app.packets.protocol_version(19))
     data += app.packets.login_reply(player.id)
 
+    if app.metrics.enabled:
+        app.metrics.increment("ex_logins")
+
     # *real* client privileges are sent with this packet,
     # then the user's apparent privileges are sent in the
     # userPresence packets to other players. we'll send
@@ -884,8 +897,8 @@ async def handle_osu_login_request(
         if (
             not channel.auto_join
             or not channel.can_read(player.priv)
-            or channel.real_name == "#lobby"  # (can't be in mp lobby @ login)
-        ):
+            or channel.real_name == "#lobby"
+        ):  # (can't be in mp lobby @ login)
             continue
 
         # send chan info to all players who can see
@@ -1019,6 +1032,13 @@ async def handle_osu_login_request(
     # add `p` to the global player list,
     # making them officially logged in.
     app.state.sessions.players.append(player)
+
+    if app.metrics.enabled:
+        if not player.restricted:
+            app.metrics.increment("ex_online_players")
+
+        time_taken = time.time() - login_time
+        app.metrics.histrogram("ex_login_time", time_taken)
 
     if app.state.services.datadog:
         if not player.restricted:

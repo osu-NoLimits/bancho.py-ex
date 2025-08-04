@@ -9,6 +9,8 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
+from app import metrics
+import app.settings
 import starlette.routing
 from fastapi import FastAPI
 from fastapi import status
@@ -20,6 +22,9 @@ from fastapi.responses import ORJSONResponse
 from fastapi.responses import Response
 from starlette.middleware.base import RequestResponseEndpoint
 from starlette.requests import ClientDisconnect
+
+from app.api.ircserver import IRCServer
+from .start import *
 
 import app.bg_loops
 import app.settings
@@ -85,6 +90,20 @@ async def lifespan(asgi_app: BanchoAPI) -> AsyncIterator[None]:
     await app.state.services.database.connect()
     await app.state.services.redis.initialize()  # type: ignore[unused-awaitable]
 
+    await start_pubsub_recievers()
+
+    if(app.settings.ENABLE_IRC):
+        loop = asyncio.get_event_loop()
+
+        app.state.services.irc = IRCServer(
+            host=app.settings.IRC_HOST,
+            port=app.settings.IRC_PORT,
+            loop=loop
+        )
+        await app.state.services.irc.start()
+
+    metrics.start_metrics_server()
+
     if app.state.services.datadog is not None:
         app.state.services.datadog.start(  # type: ignore[no-untyped-call]
             flush_in_thread=True,
@@ -142,6 +161,7 @@ def init_exception_handlers(asgi_app: BanchoAPI) -> None:
 def init_middlewares(asgi_app: BanchoAPI) -> None:
     """Initialize our app's middleware stack."""
     asgi_app.add_middleware(middlewares.MetricsMiddleware)
+    asgi_app.add_middleware(middlewares.RateLimitMiddleware)
 
     @asgi_app.middleware("http")
     async def http_middleware(
@@ -181,6 +201,9 @@ def init_routes(asgi_app: BanchoAPI) -> None:
         # bancho.py's developer-facing api
         asgi_app.host(f"api.{domain}", api_router)
 
+        # ext local api route
+        asgi_app.host(f"{app.settings.LOCAL_HOST}", api_router)
+
 
 def init_api() -> BanchoAPI:
     """Create & initialize our app."""
@@ -191,6 +214,5 @@ def init_api() -> BanchoAPI:
     init_routes(asgi_app)
 
     return asgi_app
-
 
 asgi_app = init_api()

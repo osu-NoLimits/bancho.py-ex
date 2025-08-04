@@ -36,8 +36,10 @@ except ModuleNotFoundError:
 
 T = TypeVar("T")
 
+debug_mode_enabled = True
 
-debug_mode_enabled = False
+DEBUG = True
+
 BEATMAPS_PATH = Path.cwd() / ".data/osu"
 
 
@@ -52,45 +54,47 @@ def divide_chunks(values: list[T], n: int) -> Iterator[list[T]]:
     for i in range(0, len(values), n):
         yield values[i : i + n]
 
-
 async def recalculate_score(
     score: dict[str, Any],
     beatmap_path: Path,
     ctx: Context,
 ) -> None:
-    beatmap = ctx.beatmaps.get(score["map_id"])
-    if beatmap is None:
-        beatmap = Beatmap(path=str(beatmap_path))
-        ctx.beatmaps[score["map_id"]] = beatmap
+    try:
+        beatmap = ctx.beatmaps.get(score["map_id"])
+        if beatmap is None:
+            beatmap = Beatmap(path=str(beatmap_path))
+            ctx.beatmaps[score["map_id"]] = beatmap
 
-    calculator = Calculator(
-        mode=GameMode(score["mode"]).as_vanilla,
-        mods=score["mods"],
-        combo=score["max_combo"],
-        n_geki=score["ngeki"],  # Mania 320s
-        n300=score["n300"],
-        n_katu=score["nkatu"],  # Mania 200s, Catch tiny droplets
-        n100=score["n100"],
-        n50=score["n50"],
-        n_misses=score["nmiss"],
-    )
-    attrs = calculator.performance(beatmap)
-
-    new_pp: float = attrs.pp
-    if math.isnan(new_pp) or math.isinf(new_pp):
-        new_pp = 0.0
-
-    new_pp = min(new_pp, 9999.999)
-
-    await ctx.database.execute(
-        "UPDATE scores SET pp = :new_pp WHERE id = :id",
-        {"new_pp": new_pp, "id": score["id"]},
-    )
-
-    if debug_mode_enabled:
-        print(
-            f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+        calculator = Calculator(
+            mode=GameMode(score["mode"]).as_vanilla,
+            mods=score["mods"],
+            combo=score["max_combo"],
+            n_geki=score["ngeki"],  # Mania 320s
+            n300=score["n300"],
+            n_katu=score["nkatu"],  # Mania 200s, Catch tiny droplets
+            n100=score["n100"],
+            n50=score["n50"],
+            n_misses=score["nmiss"],
         )
+        attrs = calculator.performance(beatmap)
+
+        new_pp: float = attrs.pp
+        if math.isnan(new_pp) or math.isinf(new_pp):
+            new_pp = 0.0
+
+        await ctx.database.execute(
+            "UPDATE scores SET pp = :new_pp WHERE id = :id",
+            {"new_pp": new_pp, "id": score["id"]},
+        )
+
+        if debug_mode_enabled:
+            print(
+                f"Recalculated score ID {score['id']} ({score['pp']:.3f}pp -> {new_pp:.3f}pp)",
+            )
+            
+    except Exception as e:
+        # Log the error and continue processing other scores
+        print(f"Failed to recalculate score ID {score['id']}: {e}")
 
 
 async def process_score_chunk(
@@ -165,10 +169,9 @@ async def recalculate_user(
             f"bancho:leaderboard:{game_mode.value}:{user_info['country']}",
             {str(id): pp},
         )
-
+        
     if debug_mode_enabled:
         print(f"Recalculated user ID {id} ({pp:.3f}pp, {acc:.3f}%)")
-
 
 async def process_user_chunk(
     chunk: list[int],
