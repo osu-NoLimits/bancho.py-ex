@@ -60,3 +60,14 @@ uninstall:
 # https://python-poetry.org/docs/cli/#version
 bump:
 	poetry version $(version)
+
+recalc:
+	@echo "Finding bancho container..."
+	@CONTAINER_ID=$$(docker ps --filter "name=bancho" --format "{{.ID}}"); \
+	if [ -z "$$CONTAINER_ID" ]; then \
+		echo "No running container found with name containing 'bancho'"; \
+		exit 1; \
+	fi; \
+	echo "Using container: $$CONTAINER_ID"; \
+	echo "Running recalc.py inside the container..."; \
+	docker exec -it $$CONTAINER_ID sh -c "cd tools && python recalc.py"

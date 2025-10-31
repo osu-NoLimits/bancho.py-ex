@@ -23,7 +23,7 @@ def start_metrics_server():
 
     log(
         f"Starting metrics server on 127.0.0.1:{app.settings.PROMETHEUS_PORT}",
-        Ansi.LYELLOW,
+        Ansi.LCYAN,
     )
 
     start_http_server(app.settings.PROMETHEUS_PORT)
