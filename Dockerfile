@@ -18,4 +18,9 @@ RUN apt update && \
 # NOTE: done last to avoid re-run of previous steps
 COPY . .
 
-ENTRYPOINT [ "scripts/start_server.sh" ]
+# Copy logging config if it doesn't exist
+RUN if [ ! -f logging.yaml ]; then cp logging.yaml.example logging.yaml; fi
+
+RUN chmod +x scripts/start_server.sh scripts/wait-for-it.sh
+
+CMD [ "/srv/root/scripts/start_server.sh" ]
