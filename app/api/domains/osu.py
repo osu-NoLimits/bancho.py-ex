@@ -2248,9 +2248,14 @@ if app.settings.REDIRECT_OSU_URLS:
             status_code=status.HTTP_301_MOVED_PERMANENTLY,
         )
 
-    async def osu_redirect_topic(file_path: str) -> Response:
+    async def osu_redirect_topic(file_path: str, file_path_two: str) -> Response:
+        if file_path_two == "":
+            return RedirectResponse(
+                url=f"https://{app.settings.DOMAIN}/beatmapset/{file_path}",
+                status_code=status.HTTP_301_MOVED_PERMANENTLY,
+            )
         return RedirectResponse(
-            url=f"https://{app.settings.DOMAIN}/b/{file_path}",
+            url=f"https://{app.settings.DOMAIN}/b/{file_path_two}",
             status_code=status.HTTP_301_MOVED_PERMANENTLY,
         )
 
@@ -2266,30 +2271,15 @@ if app.settings.REDIRECT_OSU_URLS:
             status_code=status.HTTP_301_MOVED_PERMANENTLY,
     )
 
+    # Register more specific routes first
+    router.get("/beatmapsets/{file_path:path}/discussion/{file_path_two:path}")(osu_redirect_topic)
     router.get("/beatmaps/{file_path:path}")(osu_redirect_beatmaps)
-    router.get("/beatmapsets/{file_path:path}")(osu_redirect_beatmaps)
+    router.get("/beatmapsets/{file_path:path}")(osu_redirect_beatmapsets)
     router.get("/community/forums/topics/{file_path:path}")(osu_redirect_beatmaps)
-    router.get("/u/{file_path:path}")(profile_redirect)
+    router.get("/users/{file_path:path}")(profile_redirect)
     router.get("/home/account/edit")(avatar_edit_redirect)
 
 """ Misc handlers """
-
-
-if app.settings.REDIRECT_OSU_URLS:
-    # NOTE: this will likely be removed with the addition of a frontend.
-    async def osu_redirect(request: Request, _: int = Path(...)) -> Response:
-        return RedirectResponse(
-            url=f"https://osu.ppy.sh{request['path']}",
-            status_code=status.HTTP_301_MOVED_PERMANENTLY,
-        )
-
-    for pattern in (
-        "/beatmapsets/{_}",
-        "/beatmaps/{_}",
-        "/beatmapsets/{_}/discussion",
-        "/community/forums/topics/{_}",
-    ):
-        router.get(pattern)(osu_redirect)
 
 
 @router.get("/ss/{screenshot_id}.{extension}")
