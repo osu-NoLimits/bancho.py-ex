@@ -85,7 +85,10 @@ BEATMAPS_PATH = SystemPath.cwd() / ".data/osu"
 REPLAYS_PATH = SystemPath.cwd() / ".data/osr"
 SCREENSHOTS_PATH = SystemPath.cwd() / ".data/ss"
 
-file_path = "caps.json"
+file_path = ".config/caps.json"
+
+if not os.path.exists(".config"):
+    os.makedirs(".config")
 
 # Default data
 default_data = {
@@ -114,7 +117,6 @@ def load_json(file_path: str):
         return default_data
 
 capData = load_json(file_path)
-print(capData)
 
 
 router = APIRouter(
