@@ -1648,6 +1648,17 @@ async def osuSubmitModularSelector(
         pp=stats_updates.get("pp", UNSET),
     )
 
+    # Notify Shiina-Web of PP update for instant cache invalidation
+    if "pp" in stats_updates:
+        await app.state.services.redis.publish(
+            "shiina:pp_update",
+            orjson.dumps({
+                "user_id": score.player.id,
+                "mode": score.mode.value,
+                "pp": stats.pp,
+            }),
+        )
+
     if not score.player.restricted:
         # enqueue new stats info to all other users
         app.state.sessions.players.enqueue(app.packets.user_stats(score.player))
