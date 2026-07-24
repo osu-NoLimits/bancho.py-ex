@@ -769,7 +769,14 @@ async def api_get_replay(
             status_code=status.HTTP_404_NOT_FOUND,
         )
     # read replay frames from file
-    raw_replay_data = replay_file.read_bytes()
+    try:
+        with replay_file.open("rb") as replay_handle:
+            raw_replay_data = replay_handle.read()
+    except OSError:
+        return ORJSONResponse(
+            {"status": "Replay temporarily unavailable."},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     if not include_headers:
         return Response(
             bytes(raw_replay_data),

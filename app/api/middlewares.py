@@ -27,7 +27,8 @@ class MetricsMiddleware(BaseHTTPMiddleware):
 
         col = Ansi.LGREEN if response.status_code < 400 else Ansi.LRED
 
-        url = f"{request.headers['host']}{request['path']}"
+        host = request.headers.get("host", "<unknown-host>")
+        url = f"{host}{request.url.path}"
 
         log(
             f"[{request.method}] {response.status_code} {url}{Ansi.RESET!r} | {Ansi.LBLUE!r}Request took: {magnitude_fmt_time(time_elapsed)}",
