@@ -1422,33 +1422,7 @@ if app.settings.DEVELOPER_MODE:
         )
         if mod in installed_mods
     }
-
-    @command(Privileges.DEVELOPER)
-    async def py(ctx: Context) -> str | None:
-        """Allow for (async) access to the python interpreter."""
-        # This can be very good for getting used to bancho.py's API; just look
-        # around the codebase and find things to play with in your server.
-        # Ex: !py return (await app.state.sessions.players.get(name='cmyui')).status.action
-        if not ctx.args:
-            return "owo"
-
-        # turn our input args into a coroutine definition string.
-        definition = "\n ".join(["async def __py(ctx):", " ".join(ctx.args)])
-
-        try:  # def __py(ctx)
-            exec(definition, __py_namespace)  # add to namespace
-            ret = await __py_namespace["__py"](ctx)  # await it's return
-        except Exception as exc:  # return exception in osu! chat
-            ret = f"{exc.__class__}: {exc}"
-
-        if "__py" in __py_namespace:
-            del __py_namespace["__py"]
-
-        if not isinstance(ret, str):
-            ret = pprint.pformat(ret, compact=True)
-
-        return str(ret)
-
+    
 
 """ Multiplayer commands
 # The commands below for multiplayer match management.
